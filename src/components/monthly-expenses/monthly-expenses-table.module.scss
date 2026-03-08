@@ -7,6 +7,23 @@
   gap: 1rem;
 }
 
+.header {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  line-height: 1.1;
+}
+
+.pageDescription {
+  margin: 0;
+  max-width: 52rem;
+  color: var(--muted-foreground);
+}
+
 .sessionStatus {
   margin: 0;
   padding: 0.875rem 1rem;
@@ -46,13 +63,9 @@
   color: var(--muted-foreground);
 }
 
-.tableCard {
+.tableContent {
   display: grid;
   gap: 1rem;
-  padding: 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--card) 92%, transparent);
 }
 
 .tableHeader {

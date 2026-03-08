@@ -78,6 +78,14 @@ describe("MonthlyExpensesPage", () => {
     expect(
       screen.getByRole("heading", { name: "Registro mensual de gastos" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Detalle del mes" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Organizá servicios, alquileres, expensas y cualquier gasto recurrente en una tabla mensual con guardado en Google Drive.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Mes")).toHaveValue("2026-03");
     expect(screen.getByDisplayValue("Agua")).toBeInTheDocument();
   });

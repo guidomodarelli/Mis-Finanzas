@@ -1,13 +1,6 @@
 import type { FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -97,17 +90,16 @@ export function MonthlyExpensesTable({
       aria-labelledby="monthly-expenses-title"
       className={styles.section}
     >
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h1 id="monthly-expenses-title">Registro mensual de gastos</h1>
-          </CardTitle>
-          <CardDescription>
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <h1 className={styles.pageTitle} id="monthly-expenses-title">
+            Registro mensual de gastos
+          </h1>
+          <p className={styles.pageDescription}>
             Organizá servicios, alquileres, expensas y cualquier gasto
             recurrente en una tabla mensual con guardado en Google Drive.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className={styles.content}>
+          </p>
+        </div>
           <p
             className={cn(
               styles.sessionStatus,
@@ -125,7 +117,7 @@ export function MonthlyExpensesTable({
           ) : null}
 
           <form onSubmit={onSubmit}>
-            <div className={styles.tableCard}>
+            <div className={styles.tableContent}>
               <div className={styles.toolbar}>
                 <div className={styles.monthField}>
                   <Label htmlFor="monthly-expenses-month">Mes</Label>
@@ -352,8 +344,7 @@ export function MonthlyExpensesTable({
               ) : null}
             </div>
           </form>
-        </CardContent>
-      </Card>
+      </div>
     </section>
   );
 }
