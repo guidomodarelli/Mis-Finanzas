@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import {
@@ -9,7 +10,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +35,12 @@ export function ExpenseRowActions({
   onEdit,
 }: ExpenseRowActionsProps) {
   const normalizedDescription = description.trim() || "este gasto";
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <AlertDialog>
-      <DropdownMenu>
+    <AlertDialog onOpenChange={setIsAlertOpen} open={isAlertOpen}>
+      <DropdownMenu onOpenChange={setIsMenuOpen} open={isMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             aria-label={`Abrir acciones para ${normalizedDescription}`}
@@ -52,25 +54,29 @@ export function ExpenseRowActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={onEdit}>
+          <DropdownMenuItem
+            onSelect={() => {
+              setIsMenuOpen(false);
+              onEdit();
+            }}
+          >
             <span className={styles.menuItem}>
               <Pencil aria-hidden="true" />
               Editar
             </span>
           </DropdownMenuItem>
-          <AlertDialogTrigger asChild>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                event.preventDefault();
-              }}
-              variant="destructive"
-            >
-              <span className={styles.menuItem}>
-                <Trash2 aria-hidden="true" />
-                Eliminar
-              </span>
-            </DropdownMenuItem>
-          </AlertDialogTrigger>
+          <DropdownMenuItem
+            onSelect={() => {
+              setIsMenuOpen(false);
+              setIsAlertOpen(true);
+            }}
+            variant="destructive"
+          >
+            <span className={styles.menuItem}>
+              <Trash2 aria-hidden="true" className={styles.destructiveIcon} />
+              Eliminar
+            </span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -83,7 +89,13 @@ export function ExpenseRowActions({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={onDelete} variant="destructive">
+          <AlertDialogAction
+            onClick={() => {
+              setIsAlertOpen(false);
+              onDelete();
+            }}
+            variant="destructive"
+          >
             Confirmar
           </AlertDialogAction>
         </AlertDialogFooter>

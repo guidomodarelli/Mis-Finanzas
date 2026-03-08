@@ -975,6 +975,9 @@ describe("MonthlyExpensesPage", () => {
     await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
 
     expect(
+      screen.queryByRole("menuitem", { name: "Eliminar" }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByText("¿Querés eliminar este gasto?"),
     ).toBeInTheDocument();
 
