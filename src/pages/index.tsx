@@ -11,41 +11,17 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { StoragePlayground } from "@/components/storage-playground/storage-playground";
 import { cn } from "@/lib/utils";
 import type {
   StorageBootstrap,
-  StorageTargetId,
 } from "@/server/storage/get-storage-bootstrap";
 import { getStorageBootstrap } from "@/server/storage/get-storage-bootstrap";
 import { GOOGLE_OAUTH_SCOPES } from "@/server/auth/google-oauth-scopes";
 import { isGoogleOAuthConfigured } from "@/server/auth/google-oauth-config";
 
 import styles from "./index.module.scss";
-
-const STORAGE_TARGET_COPY: Record<
-  StorageTargetId,
-  {
-    description: string;
-    note: string;
-    title: string;
-  }
-> = {
-  applicationSettings: {
-    description:
-      "Guarda metadatos de la aplicación que el usuario no necesita manipular directamente.",
-    note: "Usa `parents: ['appDataFolder']` y nunca expone estos archivos en My Drive.",
-    title: "Metadatos de aplicación",
-  },
-  userFiles: {
-    description:
-      "Guarda archivos visibles del usuario usando alcance mínimo y acceso explícito.",
-    note: "Mantiene el acceso restringido a archivos creados por la app o elegidos por el usuario.",
-    title: "Archivos del usuario",
-  },
-};
 
 type HomePageProps = {
   bootstrap: StorageBootstrap;
@@ -116,34 +92,6 @@ export default function HomePage({
             </Button>
           </CardFooter>
         </Card>
-
-        <section className={styles.targetsGrid}>
-          {bootstrap.storageTargets.map((storageTarget) => {
-            const copy = STORAGE_TARGET_COPY[storageTarget.id];
-
-            return (
-              <Card key={storageTarget.id}>
-                <CardHeader>
-                  <CardTitle>{copy.title}</CardTitle>
-                  <CardDescription>{copy.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className={styles.targetList}>
-                    <li>Scope requerido: {storageTarget.requiredScope}</li>
-                    <li>
-                      Visible para el usuario:{" "}
-                      {storageTarget.writesUserVisibleFiles ? "sí" : "no"}
-                    </li>
-                  </ul>
-                </CardContent>
-                <CardFooter>
-                  <p className={styles.targetNote}>{copy.note}</p>
-                </CardFooter>
-              </Card>
-            );
-          })}
-        </section>
-
         <StoragePlayground isOAuthConfigured={isOAuthConfigured} />
       </div>
     </main>

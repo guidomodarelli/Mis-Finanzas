@@ -54,6 +54,10 @@ describe("HomePage", () => {
       screen.getByRole("heading", { name: "Mis Finanzas" }),
     ).toBeInTheDocument();
     expect(
+      screen.queryByRole("heading", { name: "Archivos del usuario" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Metadatos de aplicación")).not.toBeInTheDocument();
+    expect(
       screen.getByRole("link", { name: "Conectar Google" }),
     ).toHaveAttribute("href", "/auth/signin");
     expect(
