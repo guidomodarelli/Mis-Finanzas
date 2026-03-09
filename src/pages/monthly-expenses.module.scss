@@ -27,4 +27,20 @@
 .tabsTrigger {
   flex: 0 1 auto;
   padding-inline: 0.9rem;
+  color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground) 28%);
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
 }
+
+.tabsTrigger[data-state="active"] {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.tabsTrigger[data-state="active"]::after {
+  height: 0.18rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 55%, var(--foreground) 45%);
+}
+
