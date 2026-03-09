@@ -133,7 +133,12 @@ export function MonthlyExpensesLoansReport({
           </Select>
         </div>
 
-        <Button onClick={onResetFilters} type="button" variant="outline">
+        <Button
+          className={styles.resetButton}
+          onClick={onResetFilters}
+          type="button"
+          variant="outline"
+        >
           Limpiar filtros
         </Button>
       </div>
