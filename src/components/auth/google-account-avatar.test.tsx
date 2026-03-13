@@ -1,21 +1,34 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
+
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { GoogleAccountAvatar } from "./google-account-avatar";
+
+function renderGoogleAccountAvatar(
+  props: ComponentProps<typeof GoogleAccountAvatar>,
+) {
+  return render(
+    <TooltipProvider>
+      <GoogleAccountAvatar {...props} />
+    </TooltipProvider>,
+  );
+}
 
 describe("GoogleAccountAvatar", () => {
   it("renders connect action when session is disconnected", async () => {
     const user = userEvent.setup();
     const onConnect = jest.fn();
 
-    render(
-      <GoogleAccountAvatar
-        onConnect={onConnect}
-        onDisconnect={jest.fn()}
-        status="unauthenticated"
-        userImage={null}
-        userName={null}
-      />,
+    renderGoogleAccountAvatar(
+      {
+        onConnect,
+        onDisconnect: jest.fn(),
+        status: "unauthenticated",
+        userImage: null,
+        userName: null,
+      },
     );
 
     await user.click(
@@ -29,14 +42,14 @@ describe("GoogleAccountAvatar", () => {
     const user = userEvent.setup();
     const onDisconnect = jest.fn();
 
-    render(
-      <GoogleAccountAvatar
-        onConnect={jest.fn()}
-        onDisconnect={onDisconnect}
-        status="authenticated"
-        userImage={"https://example.com/avatar.png"}
-        userName={"Gus Example"}
-      />,
+    renderGoogleAccountAvatar(
+      {
+        onConnect: jest.fn(),
+        onDisconnect,
+        status: "authenticated",
+        userImage: "https://example.com/avatar.png",
+        userName: "Gus Example",
+      },
     );
 
     await user.click(
@@ -48,16 +61,52 @@ describe("GoogleAccountAvatar", () => {
   });
 
   it("uses user initials as fallback when no profile image is available", () => {
-    render(
-      <GoogleAccountAvatar
-        onConnect={jest.fn()}
-        onDisconnect={jest.fn()}
-        status="authenticated"
-        userImage={null}
-        userName={"Guido Modarelli"}
-      />,
+    renderGoogleAccountAvatar(
+      {
+        onConnect: jest.fn(),
+        onDisconnect: jest.fn(),
+        status: "authenticated",
+        userImage: null,
+        userName: "Guido Modarelli",
+      },
     );
 
     expect(screen.getByText("GM")).toBeInTheDocument();
+  });
+
+  it("shows disconnected status in tooltip", async () => {
+    const user = userEvent.setup();
+
+    renderGoogleAccountAvatar({
+      onConnect: jest.fn(),
+      onDisconnect: jest.fn(),
+      status: "unauthenticated",
+      userImage: null,
+      userName: null,
+    });
+
+    await user.hover(
+      screen.getByRole("button", { name: "Conectar cuenta de Google" }),
+    );
+
+    expect((await screen.findAllByText("Google desconectado")).length).toBeGreaterThan(0);
+  });
+
+  it("shows connected status in tooltip", async () => {
+    const user = userEvent.setup();
+
+    renderGoogleAccountAvatar({
+      onConnect: jest.fn(),
+      onDisconnect: jest.fn(),
+      status: "authenticated",
+      userImage: null,
+      userName: "Guido Modarelli",
+    });
+
+    await user.hover(
+      screen.getByRole("button", { name: "Cuenta de Google conectada" }),
+    );
+
+    expect((await screen.findAllByText("Google conectado")).length).toBeGreaterThan(0);
   });
 });

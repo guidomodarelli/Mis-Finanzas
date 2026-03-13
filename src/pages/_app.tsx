@@ -9,6 +9,7 @@ import { SessionProvider } from "next-auth/react";
 import { useEffect } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const interSans = Inter({
   subsets: ["latin"],
@@ -51,10 +52,12 @@ export default function App({
         disableTransitionOnChange
         enableSystem
       >
-        <div className={`${interSans.className} ${interSans.variable} ${geistMono.variable}`}>
-          <Component {...restPageProps} />
-          <Toaster closeButton position="top-right" richColors />
-        </div>
+        <TooltipProvider>
+          <div className={`${interSans.className} ${interSans.variable} ${geistMono.variable}`}>
+            <Component {...restPageProps} />
+            <Toaster closeButton position="top-right" richColors />
+          </div>
+        </TooltipProvider>
       </ThemeProvider>
     </SessionProvider>
   );
