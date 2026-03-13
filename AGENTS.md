@@ -151,6 +151,21 @@ npx shadcn@latest add button
 - Never hand-copy `shadcn/ui` components from documentation or other repositories.
 - Keep generated `shadcn/ui` components close to their defaults and customize behavior through composition first.
 
+### Toast notifications baseline
+
+- Use `Sonner` integrated with `shadcn/ui` as the standard notification system for user-facing events.
+- Mount a global toaster once in `src/pages/_app.tsx` and trigger notifications from page/container handlers.
+- Select toast type by event intent:
+  - `default`: neutral messages that acknowledge a relevant user action.
+  - `success`: completed operations with expected result.
+  - `info`: contextual updates that are not success/error states.
+  - `warning`: validation issues or conditions requiring user attention.
+  - `error`: failed operations and recoverable faults.
+  - `promise`: async flows (`async/await`) to show loading, success, and failure lifecycle.
+- Prefer `toast.promise` for write operations to keep async feedback consistent.
+- Keep toast copy concise, clear, and safe: never expose secrets, raw provider payloads, tokens, or stack traces.
+- Toasts complement existing UI feedback and must not break accessibility semantics (`aria-live`, alert roles, and form errors).
+
 ### Styling baseline
 
 - `SCSS` is the styling solution for product code.

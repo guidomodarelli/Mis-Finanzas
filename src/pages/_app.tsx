@@ -3,9 +3,12 @@ import "@/styles/globals.scss";
 
 import { Geist, Geist_Mono } from "next/font/google";
 import type { AppProps } from "next/app";
+import { ThemeProvider } from "next-themes";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { useEffect } from "react";
+
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -42,9 +45,17 @@ export default function App({
 
   return (
     <SessionProvider session={session}>
-      <div className={`${geistSans.variable} ${geistMono.variable}`}>
-        <Component {...restPageProps} />
-      </div>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        disableTransitionOnChange
+        enableSystem
+      >
+        <div className={`${geistSans.variable} ${geistMono.variable}`}>
+          <Component {...restPageProps} />
+          <Toaster closeButton position="top-right" richColors />
+        </div>
+      </ThemeProvider>
     </SessionProvider>
   );
 }

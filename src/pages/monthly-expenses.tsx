@@ -7,6 +7,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import {
   type LenderOption,
@@ -639,6 +640,7 @@ export default function MonthlyExpensesPage({
         ...currentState,
         error: getSafeLoansReportErrorMessage(error),
       }));
+      toast.error("No pudimos actualizar el reporte de deudas.");
     }
   };
 
@@ -658,10 +660,21 @@ export default function MonthlyExpensesPage({
         ? normalizeEditableRows(value, [currentState.originalRow])[0]
         : null,
     }));
+    toast.info(`Mes activo actualizado a ${value}.`);
   };
 
-  const persistMonthlyExpensesRows = async (rows: MonthlyExpensesEditableRow[]) => {
+  const persistMonthlyExpensesRows = async (
+    rows: MonthlyExpensesEditableRow[],
+    toastMessages: {
+      loading: string;
+      success: string;
+    } = {
+      loading: "Guardando gastos mensuales...",
+      success: "Gastos mensuales guardados correctamente.",
+    },
+  ) => {
     if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para guardar gastos mensuales.");
       return false;
     }
 
@@ -672,12 +685,22 @@ export default function MonthlyExpensesPage({
     }));
 
     try {
-      await saveMonthlyExpensesDocumentViaApi(
+      const savePromise = saveMonthlyExpensesDocumentViaApi(
         toSaveMonthlyExpensesCommand({
           ...formState,
           rows,
         }),
       );
+
+      void toast.promise(
+        savePromise,
+        {
+          error: "No pudimos guardar los gastos mensuales.",
+          loading: toastMessages.loading,
+          success: toastMessages.success,
+        },
+      );
+      await savePromise;
 
       updateFormState((currentState) => ({
         ...currentState,
@@ -780,12 +803,14 @@ export default function MonthlyExpensesPage({
       originalRow: { ...draft },
       showUnsavedChangesDialog: false,
     }));
+    toast("Nuevo gasto listo para completar.");
   };
 
   const handleEditExpense = (expenseId: string) => {
     const row = formState.rows.find((currentRow) => currentRow.id === expenseId);
 
     if (!row) {
+      toast.warning("No pudimos encontrar el gasto que querés editar.");
       return;
     }
 
@@ -796,6 +821,7 @@ export default function MonthlyExpensesPage({
       originalRow: { ...row },
       showUnsavedChangesDialog: false,
     }));
+    toast.info("Editá el gasto y guardá los cambios cuando estés listo.");
   };
 
   const handleRequestCloseExpenseSheet = () => {
@@ -804,6 +830,7 @@ export default function MonthlyExpensesPage({
         ...currentState,
         showUnsavedChangesDialog: true,
       }));
+      toast.warning("Tenés cambios sin guardar en el gasto actual.");
       return;
     }
 
@@ -812,15 +839,22 @@ export default function MonthlyExpensesPage({
 
   const handleUnsavedChangesDiscard = () => {
     setExpenseSheetState(createClosedExpenseSheetState());
+    toast.info("Se descartaron los cambios sin guardar.");
   };
 
   const handleSaveExpense = async () => {
-    if (
-      !expenseSheetState.draft ||
-      expenseValidationMessage ||
-      !isOAuthConfigured ||
-      !isAuthenticated
-    ) {
+    if (!expenseSheetState.draft) {
+      toast.warning("No hay un gasto abierto para guardar.");
+      return;
+    }
+
+    if (expenseValidationMessage) {
+      toast.warning(expenseValidationMessage);
+      return;
+    }
+
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para guardar gastos mensuales.");
       return;
     }
 
@@ -833,7 +867,16 @@ export default function MonthlyExpensesPage({
         : formState.rows.map((row) =>
             row.id === normalizedDraft.id ? normalizedDraft : row,
           );
-    const wasSaved = await persistMonthlyExpensesRows(nextRows);
+    const wasSaved = await persistMonthlyExpensesRows(nextRows, {
+      loading:
+        expenseSheetState.mode === "create"
+          ? "Guardando nuevo gasto..."
+          : "Actualizando gasto...",
+      success:
+        expenseSheetState.mode === "create"
+          ? "Gasto creado correctamente."
+          : "Gasto actualizado correctamente.",
+    });
 
     if (wasSaved) {
       setExpenseSheetState(createClosedExpenseSheetState());
@@ -849,7 +892,10 @@ export default function MonthlyExpensesPage({
       formState.month,
       formState.rows.filter((row) => row.id !== expenseId),
     );
-    const wasSaved = await persistMonthlyExpensesRows(nextRows);
+    const wasSaved = await persistMonthlyExpensesRows(nextRows, {
+      loading: "Eliminando gasto...",
+      success: "Gasto eliminado correctamente.",
+    });
 
     if (wasSaved && expenseSheetState.draft?.id === expenseId) {
       setExpenseSheetState(createClosedExpenseSheetState());
@@ -874,11 +920,17 @@ export default function MonthlyExpensesPage({
     const lenderName = lendersState.name.trim();
     const newLenderId = createLenderId();
 
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para guardar prestadores.");
+      return;
+    }
+
     if (!lenderName) {
       updateLendersState((currentState) => ({
         ...currentState,
         error: "Completá el nombre del prestador antes de guardarlo.",
       }));
+      toast.warning("Completá el nombre del prestador antes de guardarlo.");
       return;
     }
 
@@ -892,6 +944,7 @@ export default function MonthlyExpensesPage({
         ...currentState,
         error: "Ya existe un prestador con ese nombre.",
       }));
+      toast.warning("Ya existe un prestador con ese nombre.");
       return;
     }
 
@@ -913,7 +966,7 @@ export default function MonthlyExpensesPage({
     }));
 
     try {
-      await saveLendersCatalogViaApi({
+      const savePromise = saveLendersCatalogViaApi({
         lenders: nextLenders.map((lender) => ({
           id: lender.id,
           name: lender.name,
@@ -921,6 +974,16 @@ export default function MonthlyExpensesPage({
           type: lender.type,
         })),
       });
+
+      void toast.promise(
+        savePromise,
+        {
+          error: "No pudimos guardar el prestador.",
+          loading: "Guardando prestador...",
+          success: "Prestador guardado correctamente.",
+        },
+      );
+      await savePromise;
 
       updateLendersState(() => ({
         error: null,
@@ -942,6 +1005,11 @@ export default function MonthlyExpensesPage({
   };
 
   const handleDeleteLender = async (lenderId: string) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para eliminar prestadores.");
+      return;
+    }
+
     const nextLenders = lendersState.lenders.filter((lender) => lender.id !== lenderId);
 
     updateLendersState((currentState) => ({
@@ -952,7 +1020,7 @@ export default function MonthlyExpensesPage({
     }));
 
     try {
-      await saveLendersCatalogViaApi({
+      const savePromise = saveLendersCatalogViaApi({
         lenders: nextLenders.map((lender) => ({
           id: lender.id,
           name: lender.name,
@@ -960,6 +1028,16 @@ export default function MonthlyExpensesPage({
           type: lender.type,
         })),
       });
+
+      void toast.promise(
+        savePromise,
+        {
+          error: "No pudimos eliminar el prestador.",
+          loading: "Eliminando prestador...",
+          success: "Prestador eliminado del catálogo.",
+        },
+      );
+      await savePromise;
 
       updateFormState((currentState) => ({
         ...currentState,
@@ -1014,6 +1092,7 @@ export default function MonthlyExpensesPage({
       lenderFilter: "all",
       typeFilter: "all",
     }));
+    toast.info("Filtros del reporte restablecidos.");
   };
 
   const handleTabChange = (nextTab: string) => {
@@ -1022,6 +1101,13 @@ export default function MonthlyExpensesPage({
     }
 
     setActiveTab(nextTab);
+    toast.info(
+      nextTab === "expenses"
+        ? "Pestaña Gastos del mes activa."
+        : nextTab === "lenders"
+          ? "Pestaña Prestadores activa."
+          : "Pestaña Reporte de deudas activa.",
+    );
 
     void router.replace(
       {

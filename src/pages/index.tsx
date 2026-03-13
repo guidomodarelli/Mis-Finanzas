@@ -4,6 +4,7 @@ import type {
 } from "next";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import { isGoogleOAuthConfigured } from "@/modules/auth/infrastructure/oauth/google-oauth-config";
 import { GOOGLE_OAUTH_SCOPES } from "@/modules/auth/infrastructure/oauth/google-oauth-scopes";
@@ -148,11 +149,13 @@ export default function HomePage({
   ) => {
     event.preventDefault();
 
-    if (
-      applicationSettingsValidationMessage ||
-      !isOAuthConfigured ||
-      !isAuthenticated
-    ) {
+    if (applicationSettingsValidationMessage) {
+      toast.warning(applicationSettingsValidationMessage);
+      return;
+    }
+
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para guardar la configuración.");
       return;
     }
 
@@ -165,9 +168,19 @@ export default function HomePage({
     }));
 
     try {
-      const result = await saveApplicationSettingsViaApi(
+      const savePromise = saveApplicationSettingsViaApi(
         normalizeStorageValues(applicationSettingsForm.values),
       );
+
+      void toast.promise(
+        savePromise,
+        {
+          error: "No pudimos guardar la configuración en la base de datos.",
+          loading: "Guardando configuración...",
+          success: "Configuración guardada correctamente.",
+        },
+      );
+      const result = await savePromise;
 
       setApplicationSettingsForm((currentState) => ({
         ...currentState,
@@ -190,7 +203,13 @@ export default function HomePage({
   const submitUserFile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (userFilesValidationMessage || !isOAuthConfigured || !isAuthenticated) {
+    if (userFilesValidationMessage) {
+      toast.warning(userFilesValidationMessage);
+      return;
+    }
+
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para guardar archivos del usuario.");
       return;
     }
 
@@ -203,9 +222,19 @@ export default function HomePage({
     }));
 
     try {
-      const result = await saveUserFileViaApi(
+      const savePromise = saveUserFileViaApi(
         normalizeStorageValues(userFilesForm.values),
       );
+
+      void toast.promise(
+        savePromise,
+        {
+          error: "No pudimos guardar el archivo del usuario en Google Drive.",
+          loading: "Guardando archivo de usuario...",
+          success: "Archivo de usuario guardado correctamente.",
+        },
+      );
+      const result = await savePromise;
 
       setUserFilesForm((currentState) => ({
         ...currentState,
