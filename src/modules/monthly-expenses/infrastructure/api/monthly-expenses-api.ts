@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import type { SaveMonthlyExpensesCommand } from "../../application/commands/save-monthly-expenses-command";
-import type { StoredMonthlyExpensesDocumentResult } from "../../application/results/stored-monthly-expenses-document-result";
 
 const monthlyExpenseItemSchema = z.object({
   currency: z.enum(["ARS", "USD"]),
@@ -24,17 +23,6 @@ const monthlyExpensesRequestSchema = z.object({
   month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
 });
 
-const storedMonthlyExpensesDocumentSchema = z.object({
-  id: z.string().trim().min(1),
-  month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-  name: z.string().trim().min(1),
-  viewUrl: z.string().trim().url().nullable().optional(),
-});
-
-const monthlyExpensesSuccessEnvelopeSchema = z.object({
-  data: storedMonthlyExpensesDocumentSchema,
-});
-
 const monthlyExpensesErrorEnvelopeSchema = z.object({
   error: z.string().trim().min(1),
 });
@@ -49,7 +37,7 @@ export class MonthlyExpensesApiError extends Error {
 export async function saveMonthlyExpensesDocumentViaApi(
   payload: SaveMonthlyExpensesCommand,
   fetchImplementation: typeof fetch = fetch,
-): Promise<StoredMonthlyExpensesDocumentResult> {
+): Promise<void> {
   const normalizedPayload = monthlyExpensesRequestSchema.parse(payload);
   const response = await fetchImplementation("/api/storage/monthly-expenses", {
     body: JSON.stringify(normalizedPayload),
@@ -58,9 +46,9 @@ export async function saveMonthlyExpensesDocumentViaApi(
     },
     method: "POST",
   });
-  const responseJson = await response.json();
 
   if (!response.ok) {
+    const responseJson = await response.json();
     const parsedError =
       monthlyExpensesErrorEnvelopeSchema.safeParse(responseJson);
 
@@ -70,7 +58,4 @@ export async function saveMonthlyExpensesDocumentViaApi(
         : "monthly-expenses-api:/api/storage/monthly-expenses returned an unexpected error response.",
     );
   }
-
-  return monthlyExpensesSuccessEnvelopeSchema.parse(responseJson)
-    .data as StoredMonthlyExpensesDocumentResult;
 }

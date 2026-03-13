@@ -86,21 +86,13 @@ function createMockRouter(
 }
 
 function createMonthlyExpensesFetchMock(overrides?: {
-  monthlyExpensesViewUrl?: string | null;
   reportEntries?: Array<Record<string, unknown>>;
 }) {
   return jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
     if (input === "/api/storage/monthly-expenses") {
       return {
-        json: async () => ({
-          data: {
-            id: "monthly-expenses-file-id",
-            month: "2026-03",
-            name: "gastos-mensuales-2026-marzo.json",
-            viewUrl: overrides?.monthlyExpensesViewUrl ?? null,
-          },
-        }),
         ok: true,
+        status: 204,
       };
     }
 
@@ -267,10 +259,7 @@ describe("MonthlyExpensesPage", () => {
 
   it("opens a sheet to create a new expense and only saves on explicit confirmation", async () => {
     const user = userEvent.setup();
-    const fetchMock = createMonthlyExpensesFetchMock({
-      monthlyExpensesViewUrl:
-        "https://drive.google.com/file/d/monthly-expenses-file-id/view",
-    });
+    const fetchMock = createMonthlyExpensesFetchMock();
 
     mockedUseSession.mockReturnValue({
       data: {
@@ -332,10 +321,13 @@ describe("MonthlyExpensesPage", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByText("Internet")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Gastos mensuales guardados en la base de datos con id monthly-expenses-file-id.",
+      screen.queryByText(
+        /Gastos mensuales guardados en la base de datos con id/i,
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Archivo:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Mes:/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Id:/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Carpeta en Drive:")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Abrir archivo mensual en Drive" }),
@@ -1272,15 +1264,8 @@ describe("MonthlyExpensesPage", () => {
     const fetchMock = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
       if (input === "/api/storage/monthly-expenses") {
         return {
-          json: async () => ({
-            data: {
-              id: "monthly-expenses-file-id",
-              month: "2026-03",
-              name: "gastos-mensuales-2026-marzo.json",
-              viewUrl: null,
-            },
-          }),
           ok: true,
+          status: 204,
         };
       }
 

@@ -83,14 +83,7 @@ interface MonthlyExpensesFormState {
   error: string | null;
   isSubmitting: boolean;
   month: string;
-  result: {
-    id: string;
-    month: string;
-    name: string;
-    viewUrl: string | null;
-  } | null;
   rows: MonthlyExpensesEditableRow[];
-  successMessage: string | null;
 }
 
 interface LendersCatalogState {
@@ -223,9 +216,7 @@ function createMonthlyExpensesFormState(
     error: null,
     isSubmitting: false,
     month: document.month,
-    result: null,
     rows: toEditableRows(document),
-    successMessage: null,
   };
 }
 
@@ -593,13 +584,8 @@ export default function MonthlyExpensesPage({
 
   const feedbackMessage =
     formState.error ??
-    formState.successMessage ??
     "Usá Agregar gasto o el menú de cada fila para gestionar el mes actual.";
-  const feedbackTone = formState.error
-    ? "error"
-    : formState.successMessage
-      ? "success"
-      : "default";
+  const feedbackTone = formState.error ? "error" : "default";
 
   const actionDisabled =
     !isOAuthConfigured ||
@@ -661,9 +647,7 @@ export default function MonthlyExpensesPage({
       ...currentState,
       error: null,
       month: value,
-      result: null,
       rows: normalizeEditableRows(value, currentState.rows),
-      successMessage: null,
     }));
     updateExpenseSheetState((currentState) => ({
       ...currentState,
@@ -685,12 +669,10 @@ export default function MonthlyExpensesPage({
       ...currentState,
       error: null,
       isSubmitting: true,
-      result: null,
-      successMessage: null,
     }));
 
     try {
-      const result = await saveMonthlyExpensesDocumentViaApi(
+      await saveMonthlyExpensesDocumentViaApi(
         toSaveMonthlyExpensesCommand({
           ...formState,
           rows,
@@ -701,9 +683,7 @@ export default function MonthlyExpensesPage({
         ...currentState,
         error: null,
         isSubmitting: false,
-        result,
         rows,
-        successMessage: `Gastos mensuales guardados en la base de datos con id ${result.id}.`,
       }));
       await refreshLoansReport();
       return true;
@@ -1104,7 +1084,6 @@ export default function MonthlyExpensesPage({
               onSaveExpense={handleSaveExpense}
               onSaveUnsavedChanges={handleSaveUnsavedChanges}
               onUnsavedChangesDiscard={handleUnsavedChangesDiscard}
-              result={formState.result}
               rows={formState.rows}
               sessionMessage={sessionMessage}
               sheetMode={expenseSheetState.mode}

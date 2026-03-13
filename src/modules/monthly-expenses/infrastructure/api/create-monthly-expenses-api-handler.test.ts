@@ -8,17 +8,24 @@ import { createMonthlyExpensesApiHandler } from "./create-monthly-expenses-api-h
 
 interface MockJsonResponse {
   body: unknown | undefined;
+  ended: boolean;
   headers: Record<string, string>;
   statusCode: number;
 }
 
 function createMockResponse(): NextApiResponse & MockJsonResponse {
   const response: MockJsonResponse & {
+    end(): MockJsonResponse;
     json(payload: unknown): MockJsonResponse;
     setHeader(name: string, value: string): MockJsonResponse;
     status(code: number): MockJsonResponse;
   } = {
     body: undefined,
+    ended: false,
+    end() {
+      response.ended = true;
+      return response;
+    },
     headers: {},
     json(payload: unknown) {
       response.body = payload;
@@ -94,7 +101,7 @@ describe("createMonthlyExpensesApiHandler", () => {
     });
   });
 
-  it("returns 201 with the saved document when the request succeeds", async () => {
+  it("returns 204 without exposing the saved document when the request succeeds", async () => {
     const database = {} as TursoDatabase;
     const save = jest.fn().mockResolvedValue({
       id: "monthly-expenses-file-id",
@@ -144,15 +151,9 @@ describe("createMonthlyExpensesApiHandler", () => {
       request,
       userSubject: "google-user-123",
     });
-    expect(response.statusCode).toBe(201);
-    expect(response.body).toEqual({
-      data: {
-        id: "monthly-expenses-file-id",
-        month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
-        viewUrl: null,
-      },
-    });
+    expect(response.statusCode).toBe(204);
+    expect(response.ended).toBe(true);
+    expect(response.body).toBeUndefined();
   });
 
   it("passes loan metadata to the save use case when a debt is included", async () => {
@@ -215,7 +216,9 @@ describe("createMonthlyExpensesApiHandler", () => {
       request,
       userSubject: "google-user-123",
     });
-    expect(response.statusCode).toBe(201);
+    expect(response.statusCode).toBe(204);
+    expect(response.ended).toBe(true);
+    expect(response.body).toBeUndefined();
   });
 
   it("returns 401 when Google authentication is missing", async () => {

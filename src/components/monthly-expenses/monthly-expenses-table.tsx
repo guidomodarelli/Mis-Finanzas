@@ -19,13 +19,6 @@ import styles from "./monthly-expenses-table.module.scss";
 
 type MonthlyExpenseCurrency = "ARS" | "USD";
 
-interface StoredMonthlyExpensesDocumentView {
-  id: string;
-  month: string;
-  name: string;
-  viewUrl: string | null;
-}
-
 export interface MonthlyExpensesEditableRow {
   currency: MonthlyExpenseCurrency;
   description: string;
@@ -69,7 +62,6 @@ interface MonthlyExpensesTableProps {
   onSaveExpense: () => void;
   onSaveUnsavedChanges: () => void;
   onUnsavedChangesDiscard: () => void;
-  result: StoredMonthlyExpensesDocumentView | null;
   rows: MonthlyExpensesEditableRow[];
   sessionMessage: string;
   sheetMode: "create" | "edit";
@@ -154,7 +146,6 @@ export function MonthlyExpensesTable({
   onSaveExpense,
   onSaveUnsavedChanges,
   onUnsavedChangesDiscard,
-  result,
   rows,
   sessionMessage,
   sheetMode,
@@ -319,14 +310,6 @@ export function MonthlyExpensesTable({
           >
             {feedbackMessage}
           </p>
-
-          {result ? (
-            <div className={styles.result}>
-              <p className={styles.resultLine}>Archivo: {result.name}</p>
-              <p className={styles.resultLine}>Mes: {result.month}</p>
-              <p className={styles.resultLine}>Id: {result.id}</p>
-            </div>
-          ) : null}
         </div>
 
         <ExpenseSheet

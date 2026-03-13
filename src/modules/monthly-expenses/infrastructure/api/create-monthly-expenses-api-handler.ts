@@ -82,16 +82,15 @@ export function createMonthlyExpensesApiHandler<TResult>({
     try {
       const userSubject = await getUserSubject(request);
       const database = await getDatabase();
-      const result = await save({
+      await save({
         command: parsedBody.data,
         database,
         request,
         userSubject,
       });
 
-      return response.status(201).json({
-        data: result,
-      });
+      response.status(204).end();
+      return;
     } catch (error) {
       if (error instanceof GoogleOAuthAuthenticationError) {
         return response.status(401).json({
