@@ -1101,13 +1101,6 @@ export default function MonthlyExpensesPage({
     }
 
     setActiveTab(nextTab);
-    toast.info(
-      nextTab === "expenses"
-        ? "Pestaña Gastos del mes activa."
-        : nextTab === "lenders"
-          ? "Pestaña Prestadores activa."
-          : "Pestaña Reporte de deudas activa.",
-    );
 
     void router.replace(
       {
