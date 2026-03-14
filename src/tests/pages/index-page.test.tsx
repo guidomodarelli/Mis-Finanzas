@@ -52,6 +52,11 @@ const bootstrap: StorageBootstrapResult = {
 const basePageProps = {
   bootstrap,
   initialActiveTab: "expenses" as const,
+  initialCopyableMonths: {
+    defaultSourceMonth: null,
+    sourceMonths: [],
+    targetMonth: "2026-03",
+  },
   initialDocument: {
     items: [],
     month: "2026-03",

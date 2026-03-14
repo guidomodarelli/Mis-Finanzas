@@ -11,6 +11,13 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 import type { LenderOption } from "./lender-picker";
@@ -37,15 +44,23 @@ export interface MonthlyExpensesEditableRow {
 interface MonthlyExpensesTableProps {
   actionDisabled: boolean;
   changedFields: Set<string>;
+  copySourceMonth: string | null;
+  copySourceMonthOptions: Array<{
+    label: string;
+    value: string;
+  }>;
   draft: MonthlyExpensesEditableRow | null;
   feedbackMessage: string;
   feedbackTone: "default" | "error" | "success";
+  isCopyFromDisabled: boolean;
   isExpenseSheetOpen: boolean;
   isSubmitting: boolean;
   lenders: LenderOption[];
   loadError: string | null;
   month: string;
   onAddExpense: () => void;
+  onCopyFromMonth: () => void;
+  onCopySourceMonthChange: (value: string) => void;
   onDeleteExpense: (expenseId: string) => void;
   onEditExpense: (expenseId: string) => void;
   onExpenseFieldChange: (
@@ -61,6 +76,7 @@ interface MonthlyExpensesTableProps {
   onUnsavedChangesDiscard: () => void;
   rows: MonthlyExpensesEditableRow[];
   sheetMode: "create" | "edit";
+  showCopyFromControls: boolean;
   showUnsavedChangesDialog: boolean;
   validationMessage: string | null;
 }
@@ -121,15 +137,20 @@ function formatCurrencyAmount(
 export function MonthlyExpensesTable({
   actionDisabled,
   changedFields,
+  copySourceMonth,
+  copySourceMonthOptions,
   draft,
   feedbackMessage,
   feedbackTone,
+  isCopyFromDisabled,
   isExpenseSheetOpen,
   isSubmitting,
   lenders,
   loadError,
   month,
   onAddExpense,
+  onCopyFromMonth,
+  onCopySourceMonthChange,
   onDeleteExpense,
   onEditExpense,
   onExpenseFieldChange,
@@ -142,6 +163,7 @@ export function MonthlyExpensesTable({
   onUnsavedChangesDiscard,
   rows,
   sheetMode,
+  showCopyFromControls,
   showUnsavedChangesDialog,
   validationMessage,
 }: MonthlyExpensesTableProps) {
@@ -233,6 +255,45 @@ export function MonthlyExpensesTable({
                 Cambiá el mes para guardar otra planilla mensual.
               </p>
             </div>
+
+            {showCopyFromControls ? (
+              <div className={styles.copyField}>
+                <Label htmlFor="monthly-expenses-copy-source">Copia de</Label>
+                <div className={styles.copyActions}>
+                  <Select
+                    onValueChange={onCopySourceMonthChange}
+                    value={copySourceMonth ?? undefined}
+                  >
+                    <SelectTrigger
+                      aria-label="Mes de origen para copiar"
+                      className={styles.copySourceSelect}
+                      id="monthly-expenses-copy-source"
+                    >
+                      <SelectValue placeholder="Seleccioná un mes guardado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {copySourceMonthOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    disabled={isCopyFromDisabled}
+                    onClick={onCopyFromMonth}
+                    type="button"
+                    variant="outline"
+                  >
+                    Copia de
+                  </Button>
+                </div>
+                <p className={styles.monthHint}>
+                  Copiá gastos guardados de otro mes y revisá antes de guardar.
+                </p>
+              </div>
+            ) : null}
 
             <Button
               disabled={actionDisabled}

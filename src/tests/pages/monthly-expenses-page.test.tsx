@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/router";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -84,6 +84,11 @@ const bootstrap: StorageBootstrapResult = {
 
 const basePageProps = {
   bootstrap,
+  initialCopyableMonths: {
+    defaultSourceMonth: null,
+    sourceMonths: [],
+    targetMonth: "2026-03",
+  },
   initialLendersCatalog: {
     lenders: [],
   },
@@ -120,6 +125,10 @@ function createMockRouter(
 }
 
 function createMonthlyExpensesFetchMock(overrides?: {
+  monthlyDocument?: {
+    items: Array<Record<string, unknown>>;
+    month: string;
+  };
   reportEntries?: Array<Record<string, unknown>>;
 }) {
   return jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
@@ -127,6 +136,21 @@ function createMonthlyExpensesFetchMock(overrides?: {
       return {
         ok: true,
         status: 204,
+      };
+    }
+
+    if (
+      typeof input === "string" &&
+      input.startsWith("/api/storage/monthly-expenses?")
+    ) {
+      return {
+        json: async () => ({
+          data: overrides?.monthlyDocument ?? {
+            items: [],
+            month: "2026-03",
+          },
+        }),
+        ok: true,
       };
     }
 
@@ -413,6 +437,160 @@ describe("MonthlyExpensesPage", () => {
         scroll: false,
         shallow: true,
       },
+    );
+  });
+
+  it("updates the URL query when changing month and preserves the active tab", async () => {
+    const router = createMockRouter({
+      query: {
+        month: "2026-03",
+      },
+    });
+
+    mockedUseRouter.mockReturnValue(
+      router as unknown as ReturnType<typeof useRouter>,
+    );
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Mes"), {
+      target: {
+        value: "2026-04",
+      },
+    });
+
+    expect(router.replace).toHaveBeenCalledWith(
+      {
+        pathname: "/",
+        query: {
+          month: "2026-04",
+          tab: "expenses",
+        },
+      },
+      undefined,
+      {
+        scroll: false,
+      },
+    );
+  });
+
+  it("shows copy controls only when the current month has no rows", () => {
+    const { rerender } = renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialCopyableMonths={{
+          defaultSourceMonth: "2026-02",
+          sourceMonths: ["2026-02", "2026-01"],
+          targetMonth: "2026-03",
+        }}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Copia de" })).toBeInTheDocument();
+
+    rerender(
+      <TooltipProvider>
+        <MonthlyExpensesPage
+          {...basePageProps}
+          initialCopyableMonths={{
+            defaultSourceMonth: "2026-02",
+            sourceMonths: ["2026-02", "2026-01"],
+            targetMonth: "2026-03",
+          }}
+          initialDocument={{
+            items: [
+              {
+                currency: "ARS",
+                description: "Agua",
+                id: "expense-1",
+                occurrencesPerMonth: 1,
+                subtotal: 10000,
+                total: 10000,
+              },
+            ],
+            month: "2026-03",
+          }}
+        />
+      </TooltipProvider>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Copia de" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("copies rows from a selected saved month without auto-saving", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock({
+      monthlyDocument: {
+        items: [
+          {
+            currency: "ARS",
+            description: "Internet",
+            id: "expense-source-1",
+            occurrencesPerMonth: 1,
+            subtotal: 12000,
+            total: 12000,
+          },
+        ],
+        month: "2026-02",
+      },
+    });
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialCopyableMonths={{
+          defaultSourceMonth: "2026-02",
+          sourceMonths: ["2026-02", "2026-01"],
+          targetMonth: "2026-03",
+        }}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Copia de" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/storage/monthly-expenses?month=2026-02",
+      );
+    });
+
+    expect(screen.getByText("Internet")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/storage/monthly-expenses",
+      expect.objectContaining({
+        method: "POST",
+      }),
     );
   });
 

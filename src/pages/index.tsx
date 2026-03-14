@@ -47,12 +47,19 @@ import {
   getSafeMonthlyExpensesErrorMessage,
 } from "@/modules/monthly-expenses/application/queries/get-monthly-expenses-page-feedback";
 import {
+  createEmptyMonthlyExpensesCopyableMonthsResult,
+  type MonthlyExpensesCopyableMonthsResult,
+} from "@/modules/monthly-expenses/application/results/monthly-expenses-copyable-months-result";
+import {
   createEmptyMonthlyExpensesLoansReportResult,
   type MonthlyExpensesLoansReportResult,
 } from "@/modules/monthly-expenses/application/results/monthly-expenses-loans-report-result";
 import {
   getMonthlyExpensesDocument,
 } from "@/modules/monthly-expenses/application/use-cases/get-monthly-expenses-document";
+import {
+  getMonthlyExpensesCopyableMonths,
+} from "@/modules/monthly-expenses/application/use-cases/get-monthly-expenses-copyable-months";
 import {
   getMonthlyExpensesLoansReport,
 } from "@/modules/monthly-expenses/application/use-cases/get-monthly-expenses-loans-report";
@@ -64,6 +71,7 @@ import {
   getMonthlyExpensesLoansReportViaApi,
 } from "@/modules/monthly-expenses/infrastructure/api/monthly-expenses-report-api";
 import {
+  getMonthlyExpensesDocumentViaApi,
   saveMonthlyExpensesDocumentViaApi,
 } from "@/modules/monthly-expenses/infrastructure/api/monthly-expenses-api";
 import { getStorageBootstrap } from "@/modules/storage/application/queries/get-storage-bootstrap";
@@ -73,6 +81,7 @@ import styles from "./index.module.scss";
 
 type MonthlyExpensesPageProps = {
   bootstrap: StorageBootstrapResult;
+  initialCopyableMonths: MonthlyExpensesCopyableMonthsResult;
   initialDocument: MonthlyExpensesDocumentResult;
   initialActiveTab: MonthlyExpensesTabKey;
   initialLendersCatalog: LendersCatalogDocumentResult;
@@ -517,6 +526,7 @@ export function getReportProviderFilterOptions(
 
 export default function MonthlyExpensesPage({
   bootstrap,
+  initialCopyableMonths,
   initialDocument,
   initialActiveTab,
   initialLendersCatalog,
@@ -540,6 +550,10 @@ export default function MonthlyExpensesPage({
   const [reportState, setReportState] = useState<LoansReportState>(
     createLoansReportState(initialLoansReport, reportLoadError),
   );
+  const [copySourceMonth, setCopySourceMonth] = useState<string | null>(
+    initialCopyableMonths.defaultSourceMonth,
+  );
+  const [isCopyingFromMonth, setIsCopyingFromMonth] = useState(false);
   const [expenseSheetState, setExpenseSheetState] = useState<ExpenseSheetState>(
     createClosedExpenseSheetState(),
   );
@@ -596,6 +610,17 @@ export default function MonthlyExpensesPage({
     setActiveTab(getRequestedMonthlyExpensesTab(router.query.tab));
   }, [initialActiveTab, router.isReady, router.query.tab]);
 
+  useEffect(() => {
+    setFormState(createMonthlyExpensesFormState(initialDocument));
+    setCopySourceMonth(initialCopyableMonths.defaultSourceMonth);
+    setIsCopyingFromMonth(false);
+    setExpenseSheetState(createClosedExpenseSheetState());
+  }, [
+    initialCopyableMonths.defaultSourceMonth,
+    initialCopyableMonths.sourceMonths,
+    initialDocument,
+  ]);
+
   const feedbackMessage =
     formState.error ??
     "Usá Agregar gasto o el menú de cada fila para gestionar el mes actual.";
@@ -606,6 +631,17 @@ export default function MonthlyExpensesPage({
     !isAuthenticated ||
     isSessionLoading ||
     formState.isSubmitting;
+  const copySourceMonthOptions = initialCopyableMonths.sourceMonths.map((month) => ({
+    label: month,
+    value: month,
+  }));
+  const showCopyFromControls = formState.rows.length === 0;
+  const copyFromDisabled =
+    actionDisabled ||
+    isCopyingFromMonth ||
+    !showCopyFromControls ||
+    !copySourceMonth ||
+    copySourceMonthOptions.length === 0;
   const lendersFeedbackMessage =
     lendersState.error ??
     lendersState.successMessage ??
@@ -658,22 +694,80 @@ export default function MonthlyExpensesPage({
   };
 
   const handleMonthChange = (value: string) => {
-    updateFormState((currentState) => ({
-      ...currentState,
-      error: null,
-      month: value,
-      rows: normalizeEditableRows(value, currentState.rows),
-    }));
-    updateExpenseSheetState((currentState) => ({
-      ...currentState,
-      draft: currentState.draft
-        ? normalizeEditableRows(value, [currentState.draft])[0]
-        : null,
-      originalRow: currentState.originalRow
-        ? normalizeEditableRows(value, [currentState.originalRow])[0]
-        : null,
-    }));
-    toast.info(`Mes activo actualizado a ${value}.`);
+    const normalizedMonth = value.trim();
+
+    if (!MONTH_PATTERN.test(normalizedMonth) || normalizedMonth === formState.month) {
+      return;
+    }
+
+    void router.replace(
+      {
+        pathname: router.pathname,
+        query: {
+          ...router.query,
+          month: normalizedMonth,
+          tab: activeTab,
+        },
+      },
+      undefined,
+      {
+        scroll: false,
+      },
+    );
+  };
+
+  const handleCopySourceMonthChange = (value: string) => {
+    if (!copySourceMonthOptions.some((option) => option.value === value)) {
+      return;
+    }
+
+    setCopySourceMonth(value);
+  };
+
+  const handleCopyFromMonth = async () => {
+    if (!copySourceMonth) {
+      toast.warning("Seleccioná un mes guardado para copiar.");
+      return;
+    }
+
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para copiar gastos de otro mes.");
+      return;
+    }
+
+    setIsCopyingFromMonth(true);
+
+    try {
+      const sourceDocument = await getMonthlyExpensesDocumentViaApi(copySourceMonth);
+
+      if (sourceDocument.items.length === 0) {
+        toast.warning("El mes seleccionado no tiene gastos para copiar.");
+        return;
+      }
+
+      const copiedRows = normalizeEditableRows(
+        formState.month,
+        toEditableRows(sourceDocument),
+      );
+
+      updateFormState((currentState) => ({
+        ...currentState,
+        error: null,
+        rows: copiedRows,
+      }));
+      setExpenseSheetState(createClosedExpenseSheetState());
+      toast.info(
+        `Copiamos la planilla de ${copySourceMonth}. Revisá y guardá para persistir ${formState.month}.`,
+      );
+    } catch (error) {
+      updateFormState((currentState) => ({
+        ...currentState,
+        error: getSafeMonthlyExpensesErrorMessage(error),
+      }));
+      toast.error("No pudimos copiar gastos desde el mes seleccionado.");
+    } finally {
+      setIsCopyingFromMonth(false);
+    }
   };
 
   const persistMonthlyExpensesRows = async (
@@ -1165,15 +1259,20 @@ export default function MonthlyExpensesPage({
             <MonthlyExpensesTable
               actionDisabled={actionDisabled}
               changedFields={changedExpenseFields}
+              copySourceMonth={copySourceMonth}
+              copySourceMonthOptions={copySourceMonthOptions}
               draft={expenseSheetState.draft}
               feedbackMessage={feedbackMessage}
               feedbackTone={feedbackTone}
+              isCopyFromDisabled={copyFromDisabled}
               isExpenseSheetOpen={expenseSheetState.isOpen}
               isSubmitting={formState.isSubmitting}
               lenders={lendersState.lenders}
               loadError={loadError}
               month={formState.month}
               onAddExpense={handleAddExpense}
+              onCopyFromMonth={handleCopyFromMonth}
+              onCopySourceMonthChange={handleCopySourceMonthChange}
               onDeleteExpense={handleRemoveExpense}
               onEditExpense={handleEditExpense}
               onExpenseFieldChange={handleExpenseFieldChange}
@@ -1186,6 +1285,7 @@ export default function MonthlyExpensesPage({
               onUnsavedChangesDiscard={handleUnsavedChangesDiscard}
               rows={formState.rows}
               sheetMode={expenseSheetState.mode}
+              showCopyFromControls={showCopyFromControls}
               showUnsavedChangesDialog={expenseSheetState.showUnsavedChangesDialog}
               validationMessage={expenseValidationMessage}
             />
@@ -1240,6 +1340,8 @@ export const getServerSideProps: GetServerSideProps<MonthlyExpensesPageProps> =
       return {
         props: {
           bootstrap,
+          initialCopyableMonths:
+            createEmptyMonthlyExpensesCopyableMonthsResult(selectedMonth),
           initialActiveTab,
           initialDocument: createEmptyMonthlyExpensesDocumentResult(
             selectedMonth,
@@ -1278,7 +1380,7 @@ export const getServerSideProps: GetServerSideProps<MonthlyExpensesPageProps> =
         database,
         userSubject,
       );
-      const [documentResult, lendersResult, reportResult] = await Promise.allSettled([
+      const [documentResult, lendersResult, reportResult, copyableMonthsResult] = await Promise.allSettled([
         getMonthlyExpensesDocument({
           query: {
             month: selectedMonth,
@@ -1296,11 +1398,21 @@ export const getServerSideProps: GetServerSideProps<MonthlyExpensesPageProps> =
             repository: monthlyExpensesRepository,
           }),
         ),
+        getMonthlyExpensesCopyableMonths({
+          query: {
+            targetMonth: selectedMonth,
+          },
+          repository: monthlyExpensesRepository,
+        }),
       ]);
 
       return {
         props: {
           bootstrap,
+          initialCopyableMonths:
+            copyableMonthsResult.status === "fulfilled"
+              ? copyableMonthsResult.value
+              : createEmptyMonthlyExpensesCopyableMonthsResult(selectedMonth),
           initialActiveTab,
           initialDocument:
             documentResult.status === "fulfilled"
@@ -1332,6 +1444,8 @@ export const getServerSideProps: GetServerSideProps<MonthlyExpensesPageProps> =
       return {
         props: {
           bootstrap,
+          initialCopyableMonths:
+            createEmptyMonthlyExpensesCopyableMonthsResult(selectedMonth),
           initialActiveTab,
           initialDocument: createEmptyMonthlyExpensesDocumentResult(
             selectedMonth,

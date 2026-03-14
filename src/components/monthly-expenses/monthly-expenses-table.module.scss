@@ -39,6 +39,22 @@
   width: min(15rem, 100%);
 }
 
+.copyField {
+  display: grid;
+  gap: 0.4rem;
+  width: min(24rem, 100%);
+}
+
+.copyActions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.copySourceSelect {
+  width: 100%;
+}
+
 .monthHint {
   margin: 0;
   font-size: 0.875rem;
@@ -253,5 +269,15 @@
 
   .monthField {
     width: 100%;
+  }
+
+  .copyField {
+    width: 100%;
+  }
+
+  .copyActions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 }

@@ -31,6 +31,10 @@ const monthlyExpensesRequestBodySchema = z.object({
   month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
 });
 
+const monthlyExpensesGetQuerySchema = z.object({
+  month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+});
+
 async function getDefaultUserSubject(request: NextApiRequest) {
   const { getAuthenticatedUserSubjectFromRequest } = await import(
     "@/modules/auth/infrastructure/next-auth/authenticated-user-subject"
@@ -47,27 +51,90 @@ async function getDefaultDatabase(): Promise<TursoDatabase> {
   return createMigratedTursoDatabase();
 }
 
-export function createMonthlyExpensesApiHandler<TResult>({
+export function createMonthlyExpensesApiHandler<TLoadResult, TSaveResult>({
   getDatabase = getDefaultDatabase,
   getUserSubject = getDefaultUserSubject,
+  load,
   save,
 }: {
   getDatabase?: () => Promise<TursoDatabase> | TursoDatabase;
   getUserSubject?: (request: NextApiRequest) => Promise<string>;
+  load: (dependencies: {
+    database: TursoDatabase;
+    month: string;
+    request: NextApiRequest;
+    userSubject: string;
+  }) => Promise<TLoadResult>;
   save: (dependencies: {
     command: SaveMonthlyExpensesCommand;
     database: TursoDatabase;
     request: NextApiRequest;
     userSubject: string;
-  }) => Promise<TResult>;
+  }) => Promise<TSaveResult>;
 }): NextApiHandler {
   return async function monthlyExpensesApiHandler(request, response) {
-    if (request.method !== "POST") {
-      response.setHeader("Allow", "POST");
+    if (request.method !== "GET" && request.method !== "POST") {
+      response.setHeader("Allow", "GET, POST");
 
       return response.status(405).json({
-        error: "monthly-expenses only supports POST requests on this endpoint.",
+        error:
+          "monthly-expenses only supports GET and POST requests on this endpoint.",
       });
+    }
+
+    if (request.method === "GET") {
+      const rawMonthQuery = Array.isArray(request.query.month)
+        ? request.query.month[0]
+        : request.query.month;
+      const parsedQuery = monthlyExpensesGetQuerySchema.safeParse({
+        month: rawMonthQuery,
+      });
+
+      if (!parsedQuery.success) {
+        return response.status(400).json({
+          error:
+            "monthly-expenses requires a month query parameter in YYYY-MM format for GET requests.",
+        });
+      }
+
+      try {
+        const userSubject = await getUserSubject(request);
+        const database = await getDatabase();
+
+        return response.status(200).json({
+          data: await load({
+            database,
+            month: parsedQuery.data.month,
+            request,
+            userSubject,
+          }),
+        });
+      } catch (error) {
+        if (error instanceof GoogleOAuthAuthenticationError) {
+          return response.status(401).json({
+            error:
+              "Google authentication is required before loading monthly expenses.",
+          });
+        }
+
+        if (error instanceof GoogleOAuthConfigurationError) {
+          return response.status(500).json({
+            error:
+              "Google OAuth server configuration is incomplete for monthly expenses loading.",
+          });
+        }
+
+        if (error instanceof TursoConfigurationError) {
+          return response.status(500).json({
+            error:
+              "Database server configuration is incomplete for monthly expenses loading.",
+          });
+        }
+
+        return response.status(500).json({
+          error: "We could not load monthly expenses right now. Try again later.",
+        });
+      }
     }
 
     const parsedBody = monthlyExpensesRequestBodySchema.safeParse(request.body);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { SaveMonthlyExpensesCommand } from "../../application/commands/save-monthly-expenses-command";
+import type { MonthlyExpensesDocumentResult } from "../../application/results/monthly-expenses-document-result";
 
 const monthlyExpenseItemSchema = z.object({
   currency: z.enum(["ARS", "USD"]),
@@ -25,6 +26,32 @@ const monthlyExpensesRequestSchema = z.object({
 
 const monthlyExpensesErrorEnvelopeSchema = z.object({
   error: z.string().trim().min(1),
+});
+
+const monthlyExpensesDocumentEnvelopeSchema = z.object({
+  data: z.object({
+    items: z.array(
+      z.object({
+        currency: z.enum(["ARS", "USD"]),
+        description: z.string().trim().min(1),
+        id: z.string().trim().min(1),
+        loan: z
+          .object({
+            endMonth: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+            installmentCount: z.number().int().positive(),
+            lenderId: z.string().optional(),
+            lenderName: z.string().optional(),
+            paidInstallments: z.number().int().nonnegative(),
+            startMonth: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+          })
+          .optional(),
+        occurrencesPerMonth: z.number().int().positive(),
+        subtotal: z.number().positive(),
+        total: z.number().nonnegative(),
+      }),
+    ),
+    month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  }),
 });
 
 export class MonthlyExpensesApiError extends Error {
@@ -58,4 +85,35 @@ export async function saveMonthlyExpensesDocumentViaApi(
         : "monthly-expenses-api:/api/storage/monthly-expenses returned an unexpected error response.",
     );
   }
+}
+
+export async function getMonthlyExpensesDocumentViaApi(
+  month: string,
+  fetchImplementation: typeof fetch = fetch,
+): Promise<MonthlyExpensesDocumentResult> {
+  const normalizedMonth = z
+    .string()
+    .trim()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .parse(month);
+  const searchParams = new URLSearchParams({
+    month: normalizedMonth,
+  });
+  const response = await fetchImplementation(
+    `/api/storage/monthly-expenses?${searchParams.toString()}`,
+  );
+  const responseJson = await response.json();
+
+  if (!response.ok) {
+    const parsedError = monthlyExpensesErrorEnvelopeSchema.safeParse(responseJson);
+
+    throw new MonthlyExpensesApiError(
+      parsedError.success
+        ? parsedError.data.error
+        : "monthly-expenses-api:/api/storage/monthly-expenses returned an unexpected error response.",
+    );
+  }
+
+  return monthlyExpensesDocumentEnvelopeSchema.parse(responseJson)
+    .data as MonthlyExpensesDocumentResult;
 }

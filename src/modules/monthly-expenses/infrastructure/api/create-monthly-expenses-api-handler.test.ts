@@ -46,8 +46,9 @@ function createMockResponse(): NextApiResponse & MockJsonResponse {
 }
 
 describe("createMonthlyExpensesApiHandler", () => {
-  it("rejects methods other than POST", async () => {
+  it("rejects methods other than GET and POST", async () => {
     const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
       getDatabase: jest.fn(),
       getUserSubject: jest.fn(),
       save: jest.fn(),
@@ -55,21 +56,104 @@ describe("createMonthlyExpensesApiHandler", () => {
 
     const request = {
       body: {},
-      method: "GET",
+      method: "PUT",
     } as NextApiRequest;
     const response = createMockResponse();
 
     await handler(request, response);
 
-    expect(response.headers).toEqual({ Allow: "POST" });
+    expect(response.headers).toEqual({ Allow: "GET, POST" });
     expect(response.statusCode).toBe(405);
     expect(response.body).toEqual({
-      error: "monthly-expenses only supports POST requests on this endpoint.",
+      error:
+        "monthly-expenses only supports GET and POST requests on this endpoint.",
+    });
+  });
+
+  it("returns 400 when GET receives an invalid month query", async () => {
+    const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
+      getDatabase: jest.fn(),
+      getUserSubject: jest.fn(),
+      save: jest.fn(),
+    });
+
+    const request = {
+      method: "GET",
+      query: {
+        month: "03-2026",
+      },
+    } as unknown as NextApiRequest;
+    const response = createMockResponse();
+
+    await handler(request, response);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toEqual({
+      error:
+        "monthly-expenses requires a month query parameter in YYYY-MM format for GET requests.",
+    });
+  });
+
+  it("returns 200 with the loaded monthly document when GET is valid", async () => {
+    const database = {} as TursoDatabase;
+    const load = jest.fn().mockResolvedValue({
+      items: [
+        {
+          currency: "ARS",
+          description: "Agua",
+          id: "expense-1",
+          occurrencesPerMonth: 1,
+          subtotal: 10774.53,
+          total: 10774.53,
+        },
+      ],
+      month: "2026-03",
+    });
+    const handler = createMonthlyExpensesApiHandler({
+      load,
+      getDatabase: jest.fn().mockResolvedValue(database),
+      getUserSubject: jest.fn().mockResolvedValue("google-user-123"),
+      save: jest.fn(),
+    });
+
+    const request = {
+      method: "GET",
+      query: {
+        month: "2026-03",
+      },
+    } as unknown as NextApiRequest;
+    const response = createMockResponse();
+
+    await handler(request, response);
+
+    expect(load).toHaveBeenCalledWith({
+      database,
+      month: "2026-03",
+      request,
+      userSubject: "google-user-123",
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toEqual({
+      data: {
+        items: [
+          {
+            currency: "ARS",
+            description: "Agua",
+            id: "expense-1",
+            occurrencesPerMonth: 1,
+            subtotal: 10774.53,
+            total: 10774.53,
+          },
+        ],
+        month: "2026-03",
+      },
     });
   });
 
   it("returns 400 when the request body is invalid", async () => {
     const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
       getDatabase: jest.fn(),
       getUserSubject: jest.fn(),
       save: jest.fn(),
@@ -110,6 +194,7 @@ describe("createMonthlyExpensesApiHandler", () => {
       viewUrl: null,
     });
     const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
       getDatabase: jest.fn().mockReturnValue(database),
       getUserSubject: jest.fn().mockResolvedValue("google-user-123"),
       save,
@@ -165,6 +250,7 @@ describe("createMonthlyExpensesApiHandler", () => {
       viewUrl: null,
     });
     const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
       getDatabase: jest.fn().mockReturnValue(database),
       getUserSubject: jest.fn().mockResolvedValue("google-user-123"),
       save,
@@ -223,6 +309,7 @@ describe("createMonthlyExpensesApiHandler", () => {
 
   it("returns 401 when Google authentication is missing", async () => {
     const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
       getDatabase: jest.fn(),
       getUserSubject: jest.fn().mockRejectedValue(
         new GoogleOAuthAuthenticationError(
@@ -259,6 +346,7 @@ describe("createMonthlyExpensesApiHandler", () => {
 
   it("returns 500 when database configuration is missing", async () => {
     const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
       getDatabase: jest.fn().mockImplementation(() => {
         throw new TursoConfigurationError(
           "turso-server-config:missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN server configuration.",
