@@ -1352,6 +1352,195 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
   });
 
+  it("shows installment shortcuts and allows custom installment input", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Agregar gasto" }));
+    await user.click(screen.getByLabelText("Es deuda/préstamo"));
+
+    const installmentInput = screen.getByLabelText("Cantidad total de cuotas");
+
+    expect(installmentInput).toHaveAttribute(
+      "list",
+      "expense-installment-count-suggestions",
+    );
+
+    const suggestionsList = document.getElementById(
+      "expense-installment-count-suggestions",
+    );
+
+    expect(suggestionsList).not.toBeNull();
+    expect(
+      Array.from(suggestionsList?.querySelectorAll("option") ?? []).map(
+        (option) => option.getAttribute("value"),
+      ),
+    ).toEqual(["3", "6", "9", "12", "18", "24"]);
+
+    await user.type(installmentInput, "7");
+
+    expect(installmentInput).toHaveValue("7");
+  });
+
+  it("saves a loan with a custom installment count outside shortcuts", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Prestamo tarjeta",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 50000,
+              total: 50000,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Prestamo tarjeta" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Editar" }));
+    await user.click(screen.getByLabelText("Es deuda/préstamo"));
+    await user.type(screen.getByLabelText("Cantidad total de cuotas"), "7");
+    await user.click(screen.getByLabelText("Inicio de la deuda"));
+    const [monthSelect, yearSelect] = screen
+      .getAllByRole("combobox")
+      .filter((element) => element.tagName === "SELECT");
+    await user.selectOptions(monthSelect, "0");
+    await user.selectOptions(yearSelect, "2026");
+    await user.click(screen.getByRole("button", { name: /Usar enero de 2026/i }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      const saveCall = fetchMock.mock.calls.find(
+        ([url]) => url === "/api/storage/monthly-expenses",
+      );
+
+      expect(saveCall).toBeDefined();
+
+      const [, options] = saveCall as [string, RequestInit];
+      const payload = JSON.parse(String(options.body));
+
+      expect(payload).toEqual({
+        items: [
+          {
+            currency: "ARS",
+            description: "Prestamo tarjeta",
+            id: "expense-1",
+            loan: {
+              installmentCount: 7,
+              startMonth: "2026-01",
+            },
+            occurrencesPerMonth: 1,
+            subtotal: 50000,
+          },
+        ],
+        month: "2026-03",
+      });
+    });
+  });
+
+  it("keeps installment validation as a positive integer", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Prestamo tarjeta",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 50000,
+              total: 50000,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Prestamo tarjeta" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Editar" }));
+    await user.click(screen.getByLabelText("Es deuda/préstamo"));
+    await user.type(screen.getByLabelText("Cantidad total de cuotas"), "0");
+    await user.click(screen.getByLabelText("Inicio de la deuda"));
+    const [monthSelect, yearSelect] = screen
+      .getAllByRole("combobox")
+      .filter((element) => element.tagName === "SELECT");
+    await user.selectOptions(monthSelect, "0");
+    await user.selectOptions(yearSelect, "2026");
+    await user.click(screen.getByRole("button", { name: /Usar enero de 2026/i }));
+
+    expect(
+      screen.getByText("Completá la cantidad total de cuotas."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Cantidad total de cuotas")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+  });
+
   it("saves loan metadata from the sheet and keeps lender optional", async () => {
     const user = userEvent.setup();
     const fetchMock = createMonthlyExpensesFetchMock();

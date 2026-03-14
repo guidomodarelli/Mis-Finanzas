@@ -97,6 +97,9 @@ type ExpenseSheetContentProps = Omit<ExpenseSheetProps, "draft"> & {
 type ExpenseFieldErrorMap = Partial<Record<ExpenseEditableFieldName, string>>;
 type ExpenseSheetFormValues = Record<ExpenseEditableFieldName, string>;
 
+const INSTALLMENT_COUNT_SUGGESTIONS_ID = "expense-installment-count-suggestions";
+const INSTALLMENT_COUNT_SUGGESTIONS = ["3", "6", "9", "12", "18", "24"];
+
 function getFieldLabel(label: string, isChanged: boolean) {
   return (
     <span className={styles.fieldLabelRow}>
@@ -716,18 +719,24 @@ function ExpenseSheetContent({
                                       : "false"
                                   }
                                   inputMode="numeric"
-                                  min="1"
+                                  list={INSTALLMENT_COUNT_SUGGESTIONS_ID}
                                   onChange={(event) =>
                                     onFieldChange(
                                       "installmentCount",
                                       event.target.value,
                                     )
                                   }
-                                  step="1"
-                                  type="number"
+                                  pattern="[0-9]*"
+                                  placeholder="Ej: 12"
+                                  type="text"
                                   value={draft.installmentCount}
                                 />
                               </FormControl>
+                              <datalist id={INSTALLMENT_COUNT_SUGGESTIONS_ID}>
+                                {INSTALLMENT_COUNT_SUGGESTIONS.map((installment) => (
+                                  <option key={installment} value={installment} />
+                                ))}
+                              </datalist>
                               <FormMessage className={styles.fieldErrorText} />
                             </div>
                           </FormItem>
