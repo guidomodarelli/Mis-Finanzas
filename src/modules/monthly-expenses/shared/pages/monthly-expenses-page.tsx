@@ -897,7 +897,6 @@ export default function MonthlyExpensesPage({
         ...currentState,
         showUnsavedChangesDialog: true,
       }));
-      toast.warning("Tenés cambios sin guardar en el gasto actual.");
       return;
     }
 
