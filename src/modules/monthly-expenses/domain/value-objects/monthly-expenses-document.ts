@@ -23,11 +23,13 @@ export interface MonthlyExpenseItemInput {
   id: string;
   loan?: MonthlyExpenseLoanInput;
   occurrencesPerMonth: number;
+  paymentLink?: string | null;
   subtotal: number;
 }
 
 export interface MonthlyExpenseItem extends MonthlyExpenseItemInput {
   loan?: MonthlyExpenseLoan;
+  paymentLink?: string | null;
   total: number;
 }
 
@@ -203,17 +205,50 @@ function validateLoan(
   };
 }
 
+function validatePaymentLink(
+  paymentLink: string | null | undefined,
+  operationName: string,
+): string | null {
+  if (paymentLink == null) {
+    return null;
+  }
+
+  const normalizedPaymentLink = paymentLink.trim();
+
+  if (!normalizedPaymentLink) {
+    return null;
+  }
+
+  try {
+    const parsedPaymentLink = new URL(normalizedPaymentLink);
+
+    if (
+      parsedPaymentLink.protocol !== "http:" &&
+      parsedPaymentLink.protocol !== "https:"
+    ) {
+      throw new Error("payment-link:invalid-protocol");
+    }
+
+    return normalizedPaymentLink;
+  } catch {
+    throw new Error(
+      `${operationName} requires every payment link to be a valid http or https URL.`,
+    );
+  }
+}
+
 function validateItem(
   item: MonthlyExpenseItemInput,
   operationName: string,
   targetMonth: string,
 ): MonthlyExpenseItem {
-  const { loan, ...rawItem } = item;
+  const { loan, paymentLink, ...rawItem } = item;
   const normalizedItem = {
     ...rawItem,
     description: item.description.trim(),
     id: item.id.trim(),
   };
+  const normalizedPaymentLink = validatePaymentLink(paymentLink, operationName);
 
   if (!normalizedItem.id) {
     throw new Error(
@@ -242,6 +277,7 @@ function validateItem(
   return {
     ...normalizedItem,
     ...(loan ? { loan: validateLoan(loan, operationName, targetMonth) } : {}),
+    paymentLink: normalizedPaymentLink,
     total: calculateMonthlyExpenseTotal(normalizedItem),
   };
 }
@@ -347,6 +383,7 @@ export function toMonthlyExpensesDocumentInput(
           }
         : {}),
       occurrencesPerMonth: item.occurrencesPerMonth,
+      paymentLink: item.paymentLink,
       subtotal: item.subtotal,
     })),
     month: document.month,

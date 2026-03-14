@@ -14,6 +14,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
           description: "Expensas",
           id: "expense-1",
           occurrencesPerMonth: 1,
+          paymentLink: null,
           subtotal: 55032.07,
           total: 55032.07,
         },
@@ -30,6 +31,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
               description: "Expensas",
               id: "expense-1",
               occurrencesPerMonth: 1,
+              paymentLink: null,
               subtotal: 55032.07,
             },
           ],
@@ -61,6 +63,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
             startMonth: "2026-01",
           },
           occurrencesPerMonth: 1,
+          paymentLink: null,
           subtotal: 50000,
           total: 50000,
         },
@@ -82,6 +85,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
                 startMonth: "2026-01",
               },
               occurrencesPerMonth: 1,
+              paymentLink: null,
               subtotal: 50000,
             },
           ],
@@ -117,6 +121,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
           description: "Google One",
           id: "expense-1",
           occurrencesPerMonth: 1,
+          paymentLink: null,
           subtotal: 2.49,
           total: 2.49,
         },
@@ -161,6 +166,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
             startMonth: "2026-01",
           },
           occurrencesPerMonth: 1,
+          paymentLink: null,
           subtotal: 50000,
           total: 50000,
         },
@@ -186,5 +192,33 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
       name: "gastos-mensuales-2026-marzo.json",
       viewUrl: "https://drive.google.com/file/d/monthly-expenses-file-id/view",
     });
+  });
+
+  it("serializes and parses paymentLink when provided", () => {
+    const serialized = mapMonthlyExpensesDocumentToGoogleDriveFile({
+      items: [
+        {
+          currency: "ARS",
+          description: "Electricidad",
+          id: "expense-1",
+          occurrencesPerMonth: 1,
+          paymentLink: "https://pagos.empresa-energia.com",
+          subtotal: 45,
+          total: 45,
+        },
+      ],
+      month: "2026-03",
+    });
+
+    expect(serialized.content).toContain(
+      '"paymentLink": "https://pagos.empresa-energia.com"',
+    );
+
+    const parsed = parseGoogleDriveMonthlyExpensesContent(
+      serialized.content,
+      "Loading monthly expenses",
+    );
+
+    expect(parsed.items[0]?.paymentLink).toBe("https://pagos.empresa-energia.com");
   });
 });

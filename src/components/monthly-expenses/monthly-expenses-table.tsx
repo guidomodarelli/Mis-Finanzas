@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, ExternalLink } from "lucide-react";
 
 import { ExpenseRowActions } from "@/components/monthly-expenses/expense-row-actions";
 import {
@@ -11,6 +11,11 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -36,6 +41,7 @@ export interface MonthlyExpensesEditableRow {
   loanEndMonth: string;
   loanProgress: string;
   occurrencesPerMonth: string;
+  paymentLink: string;
   startMonth: string;
   subtotal: string;
   total: string;
@@ -178,6 +184,26 @@ function getConvertedAmountForCurrency({
     : total / exchangeRateSnapshot.solidarityRate;
 }
 
+function getValidPaymentLink(value: string): string | null {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  try {
+    const parsedValue = new URL(normalizedValue);
+
+    if (parsedValue.protocol !== "http:" && parsedValue.protocol !== "https:") {
+      return null;
+    }
+
+    return normalizedValue;
+  } catch {
+    return null;
+  }
+}
+
 export function MonthlyExpensesTable({
   actionDisabled,
   changedFields,
@@ -307,6 +333,35 @@ export function MonthlyExpensesTable({
           return (leftAmount ?? Number.NEGATIVE_INFINITY) -
             (rightAmount ?? Number.NEGATIVE_INFINITY);
         },
+      },
+      {
+        accessorKey: "paymentLink",
+        cell: ({ row }) => {
+          const paymentLink = getValidPaymentLink(row.original.paymentLink);
+
+          if (!paymentLink) {
+            return "-";
+          }
+
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  className={styles.paymentLinkAction}
+                  href={paymentLink}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  Abrir
+                  <ExternalLink aria-hidden="true" className={styles.paymentLinkIcon} />
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>Abrir página de pago</TooltipContent>
+            </Tooltip>
+          );
+        },
+        enableSorting: false,
+        header: "Link",
       },
       {
         accessorKey: "loanProgress",

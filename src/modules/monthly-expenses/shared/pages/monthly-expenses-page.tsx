@@ -106,6 +106,16 @@ export type MonthlyExpensesTabKey = (typeof MONTHLY_EXPENSES_TAB_KEYS)[number];
 type MonthlyExpenseCurrency = "ARS" | "USD";
 const DEFAULT_MONTHLY_EXPENSES_TAB: MonthlyExpensesTabKey = "expenses";
 
+function isValidHttpPaymentLink(value: string): boolean {
+  try {
+    const parsedValue = new URL(value);
+
+    return parsedValue.protocol === "http:" || parsedValue.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function isMonthlyExpensesTabKey(
   value: string,
 ): value is MonthlyExpensesTabKey {
@@ -160,6 +170,7 @@ function createEmptyRow(): MonthlyExpensesEditableRow {
     loanEndMonth: "",
     loanProgress: "",
     occurrencesPerMonth: "1",
+    paymentLink: "",
     startMonth: "",
     subtotal: "",
     total: "0.00",
@@ -184,6 +195,7 @@ function toEditableRows(
       ? `${item.loan.paidInstallments} de ${item.loan.installmentCount} cuotas pagadas`
       : "",
     occurrencesPerMonth: formatEditableNumber(item.occurrencesPerMonth),
+    paymentLink: item.paymentLink?.trim() ?? "",
     startMonth: item.loan?.startMonth ?? "",
     subtotal: formatEditableNumber(item.subtotal),
     total: item.total.toFixed(2),
@@ -330,6 +342,15 @@ function getExpenseValidationMessage(
     return "Completá descripción, subtotal y veces al mes antes de guardar.";
   }
 
+  const normalizedPaymentLink = row.paymentLink.trim();
+
+  if (
+    normalizedPaymentLink.length > 0 &&
+    !isValidHttpPaymentLink(normalizedPaymentLink)
+  ) {
+    return "Ingresá una URL válida que empiece con http:// o https://.";
+  }
+
   const installmentCount = Number(row.installmentCount);
 
   if (
@@ -370,6 +391,10 @@ function getChangedExpenseFields(
     changedFields.add("occurrencesPerMonth");
   }
 
+  if (originalRow.paymentLink !== draft.paymentLink) {
+    changedFields.add("paymentLink");
+  }
+
   if (originalRow.isLoan !== draft.isLoan) {
     changedFields.add("isLoan");
   }
@@ -397,6 +422,13 @@ function toSaveMonthlyExpensesCommand(
 ): SaveMonthlyExpensesCommand {
   return {
     items: state.rows.map((row) => ({
+      ...(row.paymentLink.trim().length > 0
+        ? {
+            paymentLink: row.paymentLink.trim(),
+          }
+        : {
+            paymentLink: null,
+          }),
       currency: row.currency,
       description: row.description.trim(),
       id: row.id,

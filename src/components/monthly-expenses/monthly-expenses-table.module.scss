@@ -192,6 +192,24 @@
   white-space: nowrap;
 }
 
+.paymentLinkAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.paymentLinkAction:hover {
+  color: color-mix(in srgb, var(--primary) 82%, var(--foreground));
+}
+
+.paymentLinkIcon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 .feedback {
   margin: 0;
   padding-top: 0.875rem;

@@ -20,6 +20,13 @@ const googleDriveMonthlyExpenseItemSchema = z.object({
     })
     .optional(),
   occurrencesPerMonth: z.number().int().positive(),
+  paymentLink: z
+    .string()
+    .trim()
+    .url()
+    .refine((value) => value.startsWith("http://") || value.startsWith("https://"))
+    .nullable()
+    .optional(),
   subtotal: z.number().positive(),
 });
 
@@ -87,7 +94,15 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             }
           : {}),
         items: document.items.map(
-          ({ currency, description, id, loan, occurrencesPerMonth, subtotal }) => ({
+          ({
+            currency,
+            description,
+            id,
+            loan,
+            occurrencesPerMonth,
+            paymentLink,
+            subtotal,
+          }) => ({
             currency,
             description,
             id,
@@ -102,6 +117,7 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
                 }
               : {}),
             occurrencesPerMonth,
+            paymentLink,
             subtotal,
           }),
         ),

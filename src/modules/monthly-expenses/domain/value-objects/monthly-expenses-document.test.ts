@@ -42,6 +42,7 @@ describe("monthlyExpensesDocument", () => {
             startMonth: "2026-01",
           },
           occurrencesPerMonth: 8,
+          paymentLink: null,
           subtotal: 6000,
           total: 48000,
         },
@@ -168,8 +169,53 @@ describe("monthlyExpensesDocument", () => {
       description: "Google One",
       id: "expense-1",
       occurrencesPerMonth: 1,
+      paymentLink: null,
       subtotal: 2.49,
       total: 2.49,
     });
+  });
+
+  it("normalizes a valid http/https payment link and trims whitespace", () => {
+    const result = createMonthlyExpensesDocument(
+      {
+        items: [
+          {
+            currency: "ARS",
+            description: "Electricidad",
+            id: "expense-1",
+            occurrencesPerMonth: 1,
+            paymentLink: "  https://pagos.empresa-energia.com  ",
+            subtotal: 45,
+          },
+        ],
+        month: "2026-03",
+      },
+      "Saving monthly expenses",
+    );
+
+    expect(result.items[0]?.paymentLink).toBe("https://pagos.empresa-energia.com");
+  });
+
+  it("rejects payment links that are not valid http/https URLs", () => {
+    expect(() =>
+      createMonthlyExpensesDocument(
+        {
+          items: [
+            {
+              currency: "ARS",
+              description: "Electricidad",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              paymentLink: "ftp://pagos.empresa-energia.com",
+              subtotal: 45,
+            },
+          ],
+          month: "2026-03",
+        },
+        "Saving monthly expenses",
+      ),
+    ).toThrow(
+      "Saving monthly expenses requires every payment link to be a valid http or https URL.",
+    );
   });
 });

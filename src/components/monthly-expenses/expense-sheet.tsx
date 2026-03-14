@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarIcon, Info, X } from "lucide-react";
+import { CalendarIcon, Info, Link2, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -58,6 +58,7 @@ export type ExpenseEditableFieldName =
   | "description"
   | "installmentCount"
   | "occurrencesPerMonth"
+  | "paymentLink"
   | "startMonth"
   | "subtotal";
 
@@ -173,9 +174,22 @@ function getExpenseSheetFormValues(
     description: draft.description,
     installmentCount: draft.installmentCount,
     occurrencesPerMonth: draft.occurrencesPerMonth,
+    paymentLink: draft.paymentLink,
     startMonth: draft.startMonth,
     subtotal: draft.subtotal,
   };
+}
+
+function isValidHttpPaymentLink(value: string): boolean {
+  try {
+    const parsedValue = new URL(value);
+
+    return (
+      parsedValue.protocol === "http:" || parsedValue.protocol === "https:"
+    );
+  } catch {
+    return false;
+  }
 }
 
 function parseMonthIdentifier(value: string): Date | undefined {
@@ -220,6 +234,16 @@ function getFieldErrors(draft: MonthlyExpensesEditableRow): ExpenseFieldErrorMap
 
   if (!Number.isInteger(occurrencesPerMonth) || occurrencesPerMonth <= 0) {
     fieldErrors.occurrencesPerMonth = "Ingresá una cantidad mayor a 0.";
+  }
+
+  const normalizedPaymentLink = draft.paymentLink.trim();
+
+  if (
+    normalizedPaymentLink.length > 0 &&
+    !isValidHttpPaymentLink(normalizedPaymentLink)
+  ) {
+    fieldErrors.paymentLink =
+      "Ingresá una URL válida que empiece con http:// o https://.";
   }
 
   if (draft.isLoan && !draft.startMonth.trim()) {
@@ -422,6 +446,48 @@ function ExpenseSheetContent({
                             <SelectItem value="USD">USD</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FormMessage className={styles.fieldErrorText} />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="paymentLink"
+                  render={() => (
+                    <FormItem className={cn(styles.fieldGroup, styles.fullWidthField)}>
+                      <FormLabel>
+                        {getFieldLabel("Link de pago", changedFields.has("paymentLink"))}
+                      </FormLabel>
+                      <div className={styles.fieldControlWrapper}>
+                        <InputGroup
+                          className={cn(
+                            fieldErrors.paymentLink && styles.invalidField,
+                            changedFields.has("paymentLink") && styles.changedField,
+                          )}
+                          data-changed={
+                            changedFields.has("paymentLink") ? "true" : "false"
+                          }
+                        >
+                          <InputGroupAddon align="inline-start" aria-hidden="true">
+                            <Link2 className={styles.inputAddonIcon} />
+                          </InputGroupAddon>
+                          <FormControl>
+                            <InputGroupInput
+                              aria-label="Link de pago"
+                              data-changed={
+                                changedFields.has("paymentLink") ? "true" : "false"
+                              }
+                              onChange={(event) =>
+                                onFieldChange("paymentLink", event.target.value)
+                              }
+                              placeholder="https://..."
+                              type="url"
+                              value={draft.paymentLink}
+                            />
+                          </FormControl>
+                        </InputGroup>
                         <FormMessage className={styles.fieldErrorText} />
                       </div>
                     </FormItem>

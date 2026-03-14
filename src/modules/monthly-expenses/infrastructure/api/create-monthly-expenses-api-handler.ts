@@ -27,6 +27,13 @@ const monthlyExpenseItemSchema = z.object({
     })
     .optional(),
   occurrencesPerMonth: z.number().int().positive(),
+  paymentLink: z
+    .string()
+    .trim()
+    .url()
+    .refine((value) => value.startsWith("http://") || value.startsWith("https://"))
+    .nullable()
+    .optional(),
   subtotal: z.number().positive(),
 });
 

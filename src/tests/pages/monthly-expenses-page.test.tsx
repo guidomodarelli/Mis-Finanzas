@@ -828,6 +828,7 @@ describe("MonthlyExpensesPage", () => {
             description: "Internet",
             id: expect.any(String),
             occurrencesPerMonth: 1,
+            paymentLink: null,
             subtotal: 15000,
           },
         ],
@@ -851,6 +852,60 @@ describe("MonthlyExpensesPage", () => {
     expect(
       screen.queryByRole("link", { name: "Abrir archivo mensual en Drive" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("persists paymentLink as null when the payment link input is left empty", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Agregar gasto" }));
+    await user.type(screen.getByLabelText("Descripción"), "Electricidad");
+    await user.type(screen.getByLabelText("Subtotal"), "45");
+    await user.type(
+      screen.getByLabelText("Link de pago"),
+      "https://pagos.empresa-energia.com",
+    );
+    await user.clear(screen.getByLabelText("Link de pago"));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(getMonthlyExpensesSavePayload(fetchMock)).toEqual({
+        items: [
+          {
+            currency: "ARS",
+            description: "Electricidad",
+            id: expect.any(String),
+            occurrencesPerMonth: 1,
+            paymentLink: null,
+            subtotal: 45,
+          },
+        ],
+        month: "2026-03",
+      });
+    });
   });
 
   it("does not render the authenticated session identity details", () => {
@@ -1021,6 +1076,7 @@ describe("MonthlyExpensesPage", () => {
             description: "Agua",
             id: "expense-1",
             occurrencesPerMonth: 1,
+            paymentLink: null,
             subtotal: 12000,
           },
         ],
@@ -1173,6 +1229,7 @@ describe("MonthlyExpensesPage", () => {
             description: "Agua filtrada",
             id: "expense-1",
             occurrencesPerMonth: 1,
+            paymentLink: null,
             subtotal: 10774.53,
           },
         ],
@@ -1402,6 +1459,53 @@ describe("MonthlyExpensesPage", () => {
     );
     expect(screen.getByLabelText("Veces al mes")).toHaveValue(1);
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+  });
+
+  it("validates payment link immediately and blocks save when URL is invalid", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Agregar gasto" }));
+    await user.type(screen.getByLabelText("Descripción"), "Electricidad");
+    await user.type(screen.getByLabelText("Subtotal"), "45");
+    await user.type(screen.getByLabelText("Link de pago"), "ftp://pagos.energia.com");
+
+    expect(
+      screen.getByText("Ingresá una URL válida que empiece con http:// o https://."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Link de pago")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
+
+    await user.clear(screen.getByLabelText("Link de pago"));
+
+    expect(
+      screen.queryByText("Ingresá una URL válida que empiece con http:// o https://."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
   });
 
   it("shows and hides the debt fields inside the sheet when the loan checkbox changes", async () => {
@@ -1804,6 +1908,7 @@ describe("MonthlyExpensesPage", () => {
               startMonth: "2026-01",
             },
             occurrencesPerMonth: 1,
+            paymentLink: null,
             subtotal: 50000,
           },
         ],
@@ -1930,6 +2035,7 @@ describe("MonthlyExpensesPage", () => {
               startMonth: "2026-01",
             },
             occurrencesPerMonth: 1,
+            paymentLink: null,
             subtotal: 50000,
           },
         ],
@@ -2004,6 +2110,7 @@ describe("MonthlyExpensesPage", () => {
             description: "Agua",
             id: "expense-1",
             occurrencesPerMonth: 1,
+            paymentLink: null,
             subtotal: 10000,
           },
         ],
@@ -2272,6 +2379,7 @@ describe("MonthlyExpensesPage", () => {
               startMonth: "2026-01",
             },
             occurrencesPerMonth: 1,
+            paymentLink: null,
             subtotal: 50000,
           },
         ],
@@ -2513,6 +2621,59 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getByRole("columnheader", { name: "USD" })).toBeInTheDocument();
     expect(screen.getAllByText("$ 14.760").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("US$ 10").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("renders the Link column after USD and opens payment links in a new tab", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          exchangeRateLoadError: null,
+          exchangeRateSnapshot: {
+            blueRate: 1290,
+            month: "2026-03",
+            officialRate: 1200,
+            solidarityRate: 1476,
+          },
+          items: [
+            {
+              currency: "USD",
+              description: "Electricidad",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              paymentLink: "https://pagos.empresa-energia.com",
+              subtotal: 45,
+              total: 45,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent?.trim() ?? "");
+    const usdHeaderIndex = headers.indexOf("USD");
+    const linkHeaderIndex = headers.indexOf("Link");
+
+    expect(usdHeaderIndex).toBeGreaterThanOrEqual(0);
+    expect(linkHeaderIndex).toBe(usdHeaderIndex + 1);
+
+    const paymentLink = screen.getByRole("link", { name: "Abrir" });
+
+    expect(paymentLink).toHaveAttribute(
+      "href",
+      "https://pagos.empresa-energia.com",
+    );
+    expect(paymentLink).toHaveAttribute("target", "_blank");
+    expect(paymentLink).toHaveAttribute("rel", "noopener noreferrer");
+
+    await user.hover(paymentLink);
+
+    expect(screen.getAllByText("Abrir página de pago").length).toBeGreaterThan(0);
   });
 
   it("shows fallback values when the monthly snapshot could not be loaded", () => {

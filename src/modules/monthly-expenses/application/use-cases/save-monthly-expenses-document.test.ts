@@ -53,6 +53,7 @@ describe("saveMonthlyExpensesDocument", () => {
           description: "Expensas",
           id: "expense-1",
           occurrencesPerMonth: 1,
+          paymentLink: null,
           subtotal: 55032.07,
           total: 55032.07,
         },
