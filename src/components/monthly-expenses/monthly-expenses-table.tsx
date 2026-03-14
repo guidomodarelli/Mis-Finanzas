@@ -152,6 +152,32 @@ function formatConvertedAmount(
   return formatCurrencyAmount(currency, value.toFixed(2));
 }
 
+function getConvertedAmountForCurrency({
+  currency,
+  exchangeRateSnapshot,
+  rowCurrency,
+  total,
+}: {
+  currency: MonthlyExpenseCurrency;
+  exchangeRateSnapshot: MonthlyExpensesTableProps["exchangeRateSnapshot"];
+  rowCurrency: MonthlyExpenseCurrency;
+  total: number;
+}): number | null {
+  if (!exchangeRateSnapshot || !Number.isFinite(total)) {
+    return null;
+  }
+
+  if (currency === "ARS") {
+    return rowCurrency === "ARS"
+      ? total
+      : total * exchangeRateSnapshot.solidarityRate;
+  }
+
+  return rowCurrency === "USD"
+    ? total
+    : total / exchangeRateSnapshot.solidarityRate;
+}
+
 export function MonthlyExpensesTable({
   actionDisabled,
   changedFields,
@@ -222,39 +248,65 @@ export function MonthlyExpensesTable({
         accessorKey: "ars",
         cell: ({ row }) => {
           const total = Number(row.original.total);
-
-          if (!exchangeRateSnapshot || !Number.isFinite(total)) {
-            return "-";
-          }
-
-          const arsAmount =
-            row.original.currency === "ARS"
-              ? total
-              : total * exchangeRateSnapshot.solidarityRate;
+          const arsAmount = getConvertedAmountForCurrency({
+            currency: "ARS",
+            exchangeRateSnapshot,
+            rowCurrency: row.original.currency,
+            total,
+          });
 
           return formatConvertedAmount("ARS", arsAmount);
         },
-        enableSorting: false,
-        header: "ARS",
+        header: getSortableHeader("ARS"),
+        sortingFn: (rowA, rowB) => {
+          const leftAmount = getConvertedAmountForCurrency({
+            currency: "ARS",
+            exchangeRateSnapshot,
+            rowCurrency: rowA.original.currency,
+            total: Number(rowA.original.total),
+          });
+          const rightAmount = getConvertedAmountForCurrency({
+            currency: "ARS",
+            exchangeRateSnapshot,
+            rowCurrency: rowB.original.currency,
+            total: Number(rowB.original.total),
+          });
+
+          return (leftAmount ?? Number.NEGATIVE_INFINITY) -
+            (rightAmount ?? Number.NEGATIVE_INFINITY);
+        },
       },
       {
         accessorKey: "usd",
         cell: ({ row }) => {
           const total = Number(row.original.total);
-
-          if (!exchangeRateSnapshot || !Number.isFinite(total)) {
-            return "-";
-          }
-
-          const usdAmount =
-            row.original.currency === "USD"
-              ? total
-              : total / exchangeRateSnapshot.solidarityRate;
+          const usdAmount = getConvertedAmountForCurrency({
+            currency: "USD",
+            exchangeRateSnapshot,
+            rowCurrency: row.original.currency,
+            total,
+          });
 
           return formatConvertedAmount("USD", usdAmount);
         },
-        enableSorting: false,
-        header: "USD",
+        header: getSortableHeader("USD"),
+        sortingFn: (rowA, rowB) => {
+          const leftAmount = getConvertedAmountForCurrency({
+            currency: "USD",
+            exchangeRateSnapshot,
+            rowCurrency: rowA.original.currency,
+            total: Number(rowA.original.total),
+          });
+          const rightAmount = getConvertedAmountForCurrency({
+            currency: "USD",
+            exchangeRateSnapshot,
+            rowCurrency: rowB.original.currency,
+            total: Number(rowB.original.total),
+          });
+
+          return (leftAmount ?? Number.NEGATIVE_INFINITY) -
+            (rightAmount ?? Number.NEGATIVE_INFINITY);
+        },
       },
       {
         accessorKey: "loanProgress",

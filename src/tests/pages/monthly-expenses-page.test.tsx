@@ -372,6 +372,130 @@ describe("MonthlyExpensesPage", () => {
     ]);
   });
 
+  it("sorts ARS numerically using the monthly snapshot conversion", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          exchangeRateLoadError: null,
+          exchangeRateSnapshot: {
+            blueRate: 1290,
+            month: "2026-03",
+            officialRate: 1200,
+            solidarityRate: 100,
+          },
+          items: [
+            {
+              currency: "USD",
+              description: "Agua",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 1,
+              total: 1,
+            },
+            {
+              currency: "ARS",
+              description: "Luz",
+              id: "expense-2",
+              occurrencesPerMonth: 1,
+              subtotal: 50,
+              total: 50,
+            },
+            {
+              currency: "USD",
+              description: "Internet",
+              id: "expense-3",
+              occurrencesPerMonth: 1,
+              subtotal: 2,
+              total: 2,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "ARS" }));
+
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
+      "Luz",
+      "Agua",
+      "Internet",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "ARS" }));
+
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
+      "Internet",
+      "Agua",
+      "Luz",
+    ]);
+  });
+
+  it("sorts USD numerically using the monthly snapshot conversion", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          exchangeRateLoadError: null,
+          exchangeRateSnapshot: {
+            blueRate: 1290,
+            month: "2026-03",
+            officialRate: 1200,
+            solidarityRate: 100,
+          },
+          items: [
+            {
+              currency: "ARS",
+              description: "Agua",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 300,
+              total: 300,
+            },
+            {
+              currency: "USD",
+              description: "Luz",
+              id: "expense-2",
+              occurrencesPerMonth: 1,
+              subtotal: 2,
+              total: 2,
+            },
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-3",
+              occurrencesPerMonth: 1,
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "USD" }));
+
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
+      "Internet",
+      "Luz",
+      "Agua",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "USD" }));
+
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
+      "Agua",
+      "Luz",
+      "Internet",
+    ]);
+  });
+
   it("falls back to the expenses tab for invalid query values", () => {
     expect(getRequestedMonthlyExpensesTab(undefined)).toBe("expenses");
     expect(getRequestedMonthlyExpensesTab("unknown")).toBe("expenses");
