@@ -17,6 +17,10 @@
   gap: 0.5rem;
 }
 
+.mobileSidebarTrigger {
+  margin-right: auto;
+}
+
 .sidebarShell {
   position: relative;
 }
@@ -41,10 +45,21 @@
   right: -0.85rem;
   top: 0.75rem;
   z-index: 30;
+  display: none;
 }
 
 .sidebarEdgeTrigger {
   border: 1px solid color-mix(in srgb, var(--sidebar-border) 78%, transparent 22%);
   background: var(--sidebar);
   box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.55);
+}
+
+@media (min-width: 768px) {
+  .mobileSidebarTrigger {
+    display: none;
+  }
+
+  .sidebarEdgeTriggerDock {
+    display: block;
+  }
 }

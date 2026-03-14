@@ -1224,6 +1224,10 @@ export default function MonthlyExpensesPage({
         <main className={styles.page}>
           <div className={styles.layout}>
             <div className={styles.topBar}>
+              <SidebarTrigger
+                aria-label="Abrir menu lateral"
+                className={styles.mobileSidebarTrigger}
+              />
               <ThemeModeToggle />
               <GoogleAccountAvatar
                 onConnect={handleGoogleAccountConnect}
