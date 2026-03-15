@@ -14,7 +14,16 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { ChevronDown } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -32,6 +41,9 @@ interface DataTableProps<TData, TValue> {
   filterColumnId?: string;
   filterLabel?: string;
   filterPlaceholder?: string;
+  showColumnVisibilityToggle?: boolean;
+  columnVisibilityButtonLabel?: string;
+  columnVisibilityMenuLabel?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -41,6 +53,9 @@ export function DataTable<TData, TValue>({
   filterColumnId,
   filterLabel = "Filtrar",
   filterPlaceholder = "Filtrar...",
+  showColumnVisibilityToggle = false,
+  columnVisibilityButtonLabel = "Columnas",
+  columnVisibilityMenuLabel = "Mostrar columnas",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -63,20 +78,72 @@ export function DataTable<TData, TValue>({
       sorting,
     },
   });
+  const hideableColumns = table
+    .getAllLeafColumns()
+    .filter((column) => column.getCanHide());
+  const shouldShowColumnVisibilityToggle =
+    showColumnVisibilityToggle && hideableColumns.length > 0;
+  const shouldShowToolbar = Boolean(filterColumnId) || shouldShowColumnVisibilityToggle;
 
   return (
     <div className="grid gap-4">
-      {filterColumnId ? (
-        <Input
-          aria-label={filterLabel}
-          className="max-w-sm"
-          onChange={(event) =>
-            table.getColumn(filterColumnId)?.setFilterValue(event.target.value)
-          }
-          placeholder={filterPlaceholder}
-          type="text"
-          value={String(table.getColumn(filterColumnId)?.getFilterValue() ?? "")}
-        />
+      {shouldShowToolbar ? (
+        <div className="flex flex-wrap items-center gap-3">
+          {filterColumnId ? (
+            <Input
+              aria-label={filterLabel}
+              className="max-w-sm"
+              onChange={(event) =>
+                table.getColumn(filterColumnId)?.setFilterValue(event.target.value)
+              }
+              placeholder={filterPlaceholder}
+              type="text"
+              value={String(table.getColumn(filterColumnId)?.getFilterValue() ?? "")}
+            />
+          ) : null}
+
+          {shouldShowColumnVisibilityToggle ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  aria-label={columnVisibilityButtonLabel}
+                  className="ml-auto"
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  {columnVisibilityButtonLabel}
+                  <ChevronDown aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
+                {hideableColumns.map((column) => {
+                  const columnMeta = column.columnDef.meta as
+                    | { label?: string }
+                    | undefined;
+                  const label =
+                    columnMeta?.label ??
+                    (typeof column.columnDef.header === "string"
+                      ? column.columnDef.header
+                      : column.id);
+
+                  return (
+                    <DropdownMenuCheckboxItem
+                      checked={column.getIsVisible()}
+                      key={column.id}
+                      onCheckedChange={(nextVisible) => {
+                        column.toggleVisibility(Boolean(nextVisible));
+                      }}
+                    >
+                      {label}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="relative w-full overflow-x-auto">
@@ -110,7 +177,10 @@ export function DataTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell className="h-24 text-center" colSpan={columns.length}>
+                <TableCell
+                  className="h-24 text-center"
+                  colSpan={Math.max(table.getVisibleLeafColumns().length, 1)}
+                >
                   {emptyMessage}
                 </TableCell>
               </TableRow>

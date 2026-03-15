@@ -262,6 +262,45 @@ describe("MonthlyExpensesPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows a column selector and keeps Descripcion always visible", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Agua",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("columnheader", { name: "Descripción" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Columnas" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Columnas" }));
+
+    expect(
+      screen.queryByRole("menuitemcheckbox", { name: "Descripción" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "Moneda" }));
+
+    expect(
+      screen.queryByRole("columnheader", { name: "Moneda" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Descripción" })).toBeInTheDocument();
+  });
+
   it("sorts subtotal numerically in ascending and descending order", async () => {
     const user = userEvent.setup();
 
@@ -2728,6 +2767,35 @@ describe("MonthlyExpensesPage", () => {
     await user.hover(paymentLink);
 
     expect(screen.getAllByText("Abrir página de pago").length).toBeGreaterThan(0);
+  });
+
+  it("renders an empty actions header immediately to the right of Deuda / cuotas", () => {
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Prestamo tarjeta",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 10000,
+              total: 10000,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent?.trim() ?? "");
+    const loanHeaderIndex = headers.indexOf("Deuda / cuotas");
+
+    expect(loanHeaderIndex).toBeGreaterThanOrEqual(0);
+    expect(headers.at(loanHeaderIndex + 1)).toBe("");
   });
 
   it("shows fallback values when the monthly snapshot could not be loaded", () => {

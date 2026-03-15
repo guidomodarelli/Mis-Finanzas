@@ -249,29 +249,38 @@ export function MonthlyExpensesTable({
       {
         accessorKey: "description",
         cell: ({ row }) => row.original.description || "Sin descripción",
+        enableHiding: false,
         header: getSortableHeader("Descripción"),
+        meta: { label: "Descripción" },
       },
       {
         accessorKey: "currency",
         header: getSortableHeader("Moneda"),
+        meta: { label: "Moneda" },
       },
       {
         accessorKey: "subtotal",
         cell: ({ row }) =>
           formatCurrencyAmount(row.original.currency, row.original.subtotal),
         header: getSortableHeader("Subtotal"),
+        meta: { label: "Subtotal" },
         sortingFn: (rowA, rowB) =>
           Number(rowA.original.subtotal) - Number(rowB.original.subtotal),
       },
       {
         accessorKey: "occurrencesPerMonth",
         header: getSortableHeader("Veces al mes"),
+        meta: { label: "Veces al mes" },
       },
       {
         accessorKey: "total",
-        cell: ({ row }) =>
-          formatCurrencyAmount(row.original.currency, row.original.total),
+        cell: ({ row }) => (
+          <span className={styles.totalAmount}>
+            {formatCurrencyAmount(row.original.currency, row.original.total)}
+          </span>
+        ),
         header: getSortableHeader("Total"),
+        meta: { label: "Total" },
         sortingFn: (rowA, rowB) =>
           Number(rowA.original.total) - Number(rowB.original.total),
       },
@@ -289,6 +298,7 @@ export function MonthlyExpensesTable({
           return formatConvertedAmount("ARS", arsAmount);
         },
         header: getSortableHeader("ARS"),
+        meta: { label: "ARS" },
         sortingFn: (rowA, rowB) => {
           const leftAmount = getConvertedAmountForCurrency({
             currency: "ARS",
@@ -321,6 +331,7 @@ export function MonthlyExpensesTable({
           return formatConvertedAmount("USD", usdAmount);
         },
         header: getSortableHeader("USD"),
+        meta: { label: "USD" },
         sortingFn: (rowA, rowB) => {
           const leftAmount = getConvertedAmountForCurrency({
             currency: "USD",
@@ -367,6 +378,7 @@ export function MonthlyExpensesTable({
         },
         enableSorting: false,
         header: "Link",
+        meta: { label: "Link" },
       },
       {
         accessorKey: "loanProgress",
@@ -375,19 +387,23 @@ export function MonthlyExpensesTable({
             ? row.original.loanProgress || "Completá datos de la deuda"
             : "No aplica",
         header: "Deuda / cuotas",
+        meta: { label: "Deuda / cuotas" },
       },
       {
-        cell: ({ row }) => (
-          <ExpenseRowActions
-            actionDisabled={actionDisabled}
-            description={row.original.description}
-            onDelete={() => onDeleteExpense(row.original.id)}
-            onEdit={() => onEditExpense(row.original.id)}
-          />
-        ),
-        enableSorting: false,
-        header: "Acciones",
         id: "actions",
+        cell: ({ row }) => (
+          <div className={styles.actionsCell}>
+            <ExpenseRowActions
+              actionDisabled={actionDisabled}
+              description={row.original.description}
+              onDelete={() => onDeleteExpense(row.original.id)}
+              onEdit={() => onEditExpense(row.original.id)}
+            />
+          </div>
+        ),
+        enableHiding: false,
+        enableSorting: false,
+        header: () => null,
       },
     ],
     [actionDisabled, exchangeRateSnapshot, onDeleteExpense, onEditExpense],
@@ -485,12 +501,15 @@ export function MonthlyExpensesTable({
 
           <div className={styles.tableWrapper}>
             <DataTable
+              columnVisibilityButtonLabel="Columnas"
+              columnVisibilityMenuLabel="Mostrar columnas"
               columns={columns}
               data={rows}
               emptyMessage="No hay gastos cargados para este mes."
               filterColumnId="description"
               filterLabel="Filtrar gastos"
               filterPlaceholder="Filtrar gastos por descripción"
+              showColumnVisibilityToggle={true}
             />
           </div>
 

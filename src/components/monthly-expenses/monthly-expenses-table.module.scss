@@ -132,6 +132,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+.totalCellContent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 9rem;
+  width: 100%;
+}
+
+.totalAmount {
+  font-variant-numeric: tabular-nums;
+}
+
 .loanCell {
   display: grid;
   gap: 0.75rem;
