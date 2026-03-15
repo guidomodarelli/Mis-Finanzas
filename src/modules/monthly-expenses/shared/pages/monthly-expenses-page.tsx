@@ -660,7 +660,7 @@ export default function MonthlyExpensesPage({
     lendersState.error ??
     lendersState.successMessage ??
     lendersLoadError ??
-    "Guardá prestadores para reutilizarlos al cargar deudas.";
+    null;
   const lendersFeedbackTone = lendersState.error || lendersLoadError
     ? "error"
     : lendersState.successMessage

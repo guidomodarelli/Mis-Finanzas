@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import styles from "./lenders-panel.module.scss";
 
 interface LendersPanelProps {
-  feedbackMessage: string;
+  feedbackMessage: string | null;
   feedbackTone: "default" | "error" | "success";
   formValues: {
     name: string;
@@ -271,7 +271,7 @@ export function LendersPanel({
         </DialogContent>
       </Dialog>
 
-      {shouldRenderPanelFeedback ? (
+      {feedbackMessage && shouldRenderPanelFeedback ? (
         <p
           className={cn(
             styles.feedback,
