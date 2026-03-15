@@ -124,8 +124,7 @@ export function PaymentFrequencyField({
             </Label>
           </div>
           <p className={styles.optionDescription}>
-            Ejemplos: alquiler, expensas, agua, energia electrica o servicios
-            urbanos.
+            Ejemplos: alquiler, expensas, agua, energia electrica o internet.
           </p>
         </div>
 
@@ -142,8 +141,8 @@ export function PaymentFrequencyField({
             </Label>
           </div>
           <p className={styles.optionDescription}>
-            Ejemplos: clases de ingles, psicologa o empleada domestica. Si
-            trabaja 2 veces por semana, en 4 semanas son 8 pagos
+            Ejemplos: clases de ingles, psicologa o empleada domestica. Si el
+            servicio es 2 veces por semana, en 4 semanas serian 8 pagos
             (2 x 4 = 8).
           </p>
         </div>
