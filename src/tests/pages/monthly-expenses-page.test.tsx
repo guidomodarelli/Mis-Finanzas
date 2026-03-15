@@ -304,7 +304,7 @@ describe("MonthlyExpensesPage", () => {
     ).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Información sobre el campo Mes" }),
+      screen.getAllByRole("button", { name: "Información sobre el campo Mes" })[0],
     );
 
     expect(
@@ -313,7 +313,7 @@ describe("MonthlyExpensesPage", () => {
     ).toBeGreaterThan(0);
 
     await user.click(
-      screen.getByRole("button", { name: "Cerrar información de Mes" }),
+      screen.getAllByRole("button", { name: "Cerrar información de Mes" })[0],
     );
 
     await waitFor(() => {
