@@ -1198,6 +1198,7 @@ export default function MonthlyExpensesPage({
                 copySourceMonth={copySourceMonth}
                 copySourceMonthOptions={copySourceMonthOptions}
                 draft={expenseSheetState.draft}
+                exchangeRateLoadError={formState.exchangeRateLoadError}
                 exchangeRateSnapshot={formState.exchangeRateSnapshot}
                 feedbackMessage={feedbackMessage}
                 feedbackTone={feedbackTone}
@@ -1205,7 +1206,7 @@ export default function MonthlyExpensesPage({
                 isExpenseSheetOpen={expenseSheetState.isOpen}
                 isSubmitting={formState.isSubmitting}
                 lenders={lendersState.lenders}
-                loadError={loadError ?? formState.exchangeRateLoadError}
+                loadError={loadError}
                 month={formState.month}
                 onAddExpense={handleAddExpense}
                 onCopyFromMonth={handleCopyFromMonth}

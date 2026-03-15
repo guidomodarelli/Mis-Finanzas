@@ -61,6 +61,33 @@
   color: var(--muted-foreground);
 }
 
+.exchangeRateSummary {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.exchangeRateLine {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.exchangeRateValue {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.exchangeRateFallback {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
 .tableContent {
   display: grid;
   gap: 1.25rem;

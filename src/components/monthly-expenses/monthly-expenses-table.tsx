@@ -62,6 +62,7 @@ interface MonthlyExpensesTableProps {
     value: string;
   }>;
   draft: MonthlyExpensesEditableRow | null;
+  exchangeRateLoadError: string | null;
   exchangeRateSnapshot: {
     blueRate: number;
     month: string;
@@ -164,6 +165,13 @@ function formatConvertedAmount(
   return formatCurrencyAmount(currency, value.toFixed(2));
 }
 
+function formatExchangeRateAmount(value: number): string {
+  return `$ ${new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+  }).format(value)}`;
+}
+
 function getConvertedAmountForCurrency({
   currency,
   exchangeRateSnapshot,
@@ -215,6 +223,7 @@ export function MonthlyExpensesTable({
   copySourceMonth,
   copySourceMonthOptions,
   draft,
+  exchangeRateLoadError,
   exchangeRateSnapshot,
   feedbackMessage,
   feedbackTone,
@@ -497,6 +506,25 @@ export function MonthlyExpensesTable({
               Agregar gasto
             </Button>
           </div>
+
+          {exchangeRateSnapshot ? (
+            <div className={styles.exchangeRateSummary}>
+              <p className={styles.exchangeRateLine}>
+                Dólar oficial:
+                <span className={styles.exchangeRateValue}>
+                  {formatExchangeRateAmount(exchangeRateSnapshot.officialRate)}
+                </span>
+              </p>
+              <p className={styles.exchangeRateLine}>
+                Dólar solidario:
+                <span className={styles.exchangeRateValue}>
+                  {formatExchangeRateAmount(exchangeRateSnapshot.solidarityRate)}
+                </span>
+              </p>
+            </div>
+          ) : exchangeRateLoadError ? (
+            <p className={styles.exchangeRateFallback}>{exchangeRateLoadError}</p>
+          ) : null}
 
           <div className={styles.tableHeader}>
             <h2 className={styles.tableTitle}>Detalle del mes</h2>

@@ -2758,6 +2758,10 @@ describe("MonthlyExpensesPage", () => {
 
     expect(screen.getByRole("columnheader", { name: "ARS" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "USD" })).toBeInTheDocument();
+    expect(screen.getByText(/^Dólar oficial:/i)).toBeInTheDocument();
+    expect(screen.getByText("$ 1.200")).toBeInTheDocument();
+    expect(screen.getByText(/^Dólar solidario:/i)).toBeInTheDocument();
+    expect(screen.getByText("$ 1.476")).toBeInTheDocument();
     expect(screen.getAllByText("$ 14.760").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("US$ 10").length).toBeGreaterThanOrEqual(2);
   });
