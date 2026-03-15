@@ -10,6 +10,11 @@ import {
 
 import styles from "./monthly-expenses-loans-report.module.scss";
 
+const arsCurrencyFormatter = new Intl.NumberFormat("es-AR", {
+  maximumFractionDigits: 2,
+  minimumFractionDigits: 0,
+});
+
 interface MonthlyExpensesLoanReportView {
   activeLoanCount: number;
   expenseDescriptions: string[];
@@ -57,6 +62,14 @@ function getTypeLabel(type: MonthlyExpensesLoanReportView["lenderType"]): string
   }
 }
 
+function formatArsAmount(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "$ 0";
+  }
+
+  return `$ ${arsCurrencyFormatter.format(value)}`;
+}
+
 export function MonthlyExpensesLoansReport({
   entries,
   feedbackMessage,
@@ -85,7 +98,7 @@ export function MonthlyExpensesLoansReport({
         </div>
         <div className={styles.summaryCard}>
           <p className={styles.summaryLabel}>Monto pendiente estimado</p>
-          <p className={styles.summaryValue}>{summary.remainingAmount.toFixed(2)}</p>
+          <p className={styles.summaryValue}>{formatArsAmount(summary.remainingAmount)}</p>
         </div>
       </div>
 
@@ -159,9 +172,7 @@ export function MonthlyExpensesLoansReport({
                   <h3 className={styles.entryTitle}>{entry.lenderName}</h3>
                   <p className={styles.entryMeta}>{getTypeLabel(entry.lenderType)}</p>
                 </div>
-                <p className={styles.entryAmount}>
-                  {entry.remainingAmount.toFixed(2)}
-                </p>
+                <p className={styles.entryAmount}>{formatArsAmount(entry.remainingAmount)}</p>
               </div>
               <p className={styles.entryBody}>
                 Inicio más antiguo: {entry.firstDebtMonth ?? "Sin dato"}. Último
