@@ -901,7 +901,10 @@ export function MonthlyExpensesTable({
           return getFuzzyMatchIndices(description, query) !== null;
         },
         header: getSortableHeader("Descripción"),
-        meta: { label: "Descripción" },
+        meta: {
+          cellClassName: styles.stickyDescriptionCell,
+          label: "Descripción",
+        },
       },
       {
         accessorKey: "currency",

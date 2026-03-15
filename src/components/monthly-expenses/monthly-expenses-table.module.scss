@@ -357,6 +357,32 @@
   white-space: nowrap;
 }
 
+.stickyDescriptionCell {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--background);
+  box-shadow:
+    1px 0 0 color-mix(in srgb, var(--border) 80%, transparent),
+    12px 0 12px -12px color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.tableWrapper :global([data-slot="table-head"]:first-child) {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--background);
+  box-shadow: 1px 0 0 color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.tableWrapper :global([data-slot="table-row"]:hover) .stickyDescriptionCell {
+  background: color-mix(in srgb, var(--muted) 70%, var(--background));
+}
+
+.tableWrapper :global([data-slot="table-row"][data-state="selected"]) .stickyDescriptionCell {
+  background: var(--muted);
+}
+
 .stickyActionsCell {
   position: sticky;
   right: 0;
@@ -551,6 +577,21 @@
 }
 
 @media (max-width: 720px) {
+  .stickyDescriptionCell {
+    position: static;
+    left: auto;
+    z-index: auto;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .tableWrapper :global([data-slot="table-head"]:first-child) {
+    position: static;
+    left: auto;
+    z-index: auto;
+    box-shadow: none;
+  }
+
   .headerTopRow {
     flex-direction: column;
   }
