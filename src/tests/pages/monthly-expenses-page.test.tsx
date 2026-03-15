@@ -197,9 +197,15 @@ function getMonthlyExpensesSavePayload(fetchMock: jest.Mock) {
 }
 
 function getMonthlyExpensesDescriptionsOrder(): Array<string | null> {
-  return screen
+  const table = screen.getByRole("table");
+  const tableBody = table.querySelector("tbody");
+
+  if (!tableBody) {
+    return [];
+  }
+
+  return within(tableBody)
     .getAllByRole("row")
-    .slice(1)
     .map((row) => within(row).getAllByRole("cell")[0].textContent?.trim() ?? null);
 }
 
