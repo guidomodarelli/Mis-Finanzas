@@ -3618,7 +3618,7 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getAllByText("Abrir página de pago").length).toBeGreaterThan(0);
   });
 
-  it("renders Comprobante and Carpeta de comprobantes columns after Link", () => {
+  it("renders Comprobantes, Carpeta del mes actual, and Carpeta de comprobantes columns after Link", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -3650,18 +3650,22 @@ describe("MonthlyExpensesPage", () => {
       .getAllByRole("columnheader")
       .map((header) => header.textContent?.trim() ?? "");
     const linkHeaderIndex = headers.indexOf("Link");
-    const receiptHeaderIndex = headers.indexOf("Comprobante");
-    const receiptFolderHeaderIndex = headers.indexOf("Carpeta de comprobantes");
+    const receiptHeaderIndex = headers.indexOf("Comprobantes");
+    const monthlyReceiptFolderHeaderIndex = headers.indexOf(
+      "Carpeta del mes actual",
+    );
+    const allReceiptsFolderHeaderIndex = headers.indexOf("Carpeta de comprobantes");
 
     expect(linkHeaderIndex).toBeGreaterThanOrEqual(0);
     expect(receiptHeaderIndex).toBe(linkHeaderIndex + 1);
-    expect(receiptFolderHeaderIndex).toBe(receiptHeaderIndex + 1);
+    expect(monthlyReceiptFolderHeaderIndex).toBe(receiptHeaderIndex + 1);
+    expect(allReceiptsFolderHeaderIndex).toBe(monthlyReceiptFolderHeaderIndex + 1);
     expect(
       screen.getByRole("button", { name: "Adjuntar comprobante" }),
     ).toBeInTheDocument();
   });
 
-  it("renders receipt and folder links when receipt metadata is present", () => {
+  it("renders receipt link, monthly folder link, and all-receipts folder link when receipt metadata is present", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -3673,13 +3677,20 @@ describe("MonthlyExpensesPage", () => {
               id: "expense-1",
               occurrencesPerMonth: 1,
               paymentLink: null,
-              receipt: {
-                fileId: "receipt-file-id",
-                fileName: "comprobante.pdf",
-                fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
-                folderId: "receipt-folder-id",
-                folderViewUrl: "https://drive.google.com/drive/folders/receipt-folder-id",
-              },
+              receipts: [
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  fileId: "receipt-file-id",
+                  fileName: "comprobante.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+              ],
               subtotal: 100,
               total: 100,
             },
@@ -3692,7 +3703,10 @@ describe("MonthlyExpensesPage", () => {
     const receiptLink = screen.getByRole("link", {
       name: "Ver comprobante",
     });
-    const receiptFolderLink = screen.getByRole("link", {
+    const monthlyReceiptFolderLink = screen.getByRole("link", {
+      name: "Ver carpeta del mes actual",
+    });
+    const allReceiptsFolderLink = screen.getByRole("link", {
       name: "Ver carpeta",
     });
 
@@ -3700,7 +3714,11 @@ describe("MonthlyExpensesPage", () => {
       "href",
       "https://drive.google.com/file/d/receipt-file-id/view",
     );
-    expect(receiptFolderLink).toHaveAttribute(
+    expect(monthlyReceiptFolderLink).toHaveAttribute(
+      "href",
+      "https://drive.google.com/drive/folders/receipt-month-folder-id",
+    );
+    expect(allReceiptsFolderLink).toHaveAttribute(
       "href",
       "https://drive.google.com/drive/folders/receipt-folder-id",
     );

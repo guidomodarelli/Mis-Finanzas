@@ -29,11 +29,13 @@ export interface MonthlyExpenseLoan extends MonthlyExpenseLoanInput {
 }
 
 export interface MonthlyExpenseReceiptInput {
+  allReceiptsFolderId: string;
+  allReceiptsFolderViewUrl: string;
   fileId: string;
   fileName: string;
   fileViewUrl: string;
-  folderId: string;
-  folderViewUrl: string;
+  monthlyFolderId: string;
+  monthlyFolderViewUrl: string;
 }
 
 export type MonthlyExpenseReceipt = MonthlyExpenseReceiptInput;
@@ -45,14 +47,14 @@ export interface MonthlyExpenseItemInput {
   loan?: MonthlyExpenseLoanInput;
   occurrencesPerMonth: number;
   paymentLink?: string | null;
-  receipt?: MonthlyExpenseReceiptInput | null;
+  receipts?: MonthlyExpenseReceiptInput[] | null;
   subtotal: number;
 }
 
 export interface MonthlyExpenseItem extends MonthlyExpenseItemInput {
   loan?: MonthlyExpenseLoan;
   paymentLink?: string | null;
-  receipt?: MonthlyExpenseReceipt;
+  receipts: MonthlyExpenseReceipt[];
   total: number;
 }
 
@@ -257,47 +259,55 @@ function validatePaymentLink(
   }
 }
 
-function validateReceipt(
-  receipt: MonthlyExpenseReceiptInput | null | undefined,
+function validateReceipts(
+  receipts: MonthlyExpenseReceiptInput[] | null | undefined,
   operationName: string,
-): MonthlyExpenseReceipt | null {
-  if (receipt == null) {
-    return null;
+): MonthlyExpenseReceipt[] {
+  if (!receipts || receipts.length === 0) {
+    return [];
   }
 
-  const normalizedReceipt = {
-    fileId: receipt.fileId.trim(),
-    fileName: receipt.fileName.trim(),
-    fileViewUrl: receipt.fileViewUrl.trim(),
-    folderId: receipt.folderId.trim(),
-    folderViewUrl: receipt.folderViewUrl.trim(),
-  };
-
-  if (
-    !normalizedReceipt.fileId ||
-    !normalizedReceipt.fileName ||
-    !normalizedReceipt.folderId
-  ) {
-    throw new Error(
-      `${operationName} requires every receipt to include file and folder identifiers.`,
-    );
-  }
-
-  try {
-    return {
-      ...normalizedReceipt,
-      fileViewUrl: RECEIPT_VIEW_URL_SCHEMA.parse(
-        normalizedReceipt.fileViewUrl,
-      ),
-      folderViewUrl: RECEIPT_VIEW_URL_SCHEMA.parse(
-        normalizedReceipt.folderViewUrl,
-      ),
+  return receipts.map((receipt) => {
+    const normalizedReceipt = {
+      allReceiptsFolderId: receipt.allReceiptsFolderId.trim(),
+      allReceiptsFolderViewUrl: receipt.allReceiptsFolderViewUrl.trim(),
+      fileId: receipt.fileId.trim(),
+      fileName: receipt.fileName.trim(),
+      fileViewUrl: receipt.fileViewUrl.trim(),
+      monthlyFolderId: receipt.monthlyFolderId.trim(),
+      monthlyFolderViewUrl: receipt.monthlyFolderViewUrl.trim(),
     };
-  } catch {
-    throw new Error(
-      `${operationName} requires every receipt to include valid Drive URLs.`,
-    );
-  }
+
+    if (
+      !normalizedReceipt.fileId ||
+      !normalizedReceipt.fileName ||
+      !normalizedReceipt.monthlyFolderId ||
+      !normalizedReceipt.allReceiptsFolderId
+    ) {
+      throw new Error(
+        `${operationName} requires every receipt to include file and folder identifiers.`,
+      );
+    }
+
+    try {
+      return {
+        ...normalizedReceipt,
+        allReceiptsFolderViewUrl: RECEIPT_VIEW_URL_SCHEMA.parse(
+          normalizedReceipt.allReceiptsFolderViewUrl,
+        ),
+        fileViewUrl: RECEIPT_VIEW_URL_SCHEMA.parse(
+          normalizedReceipt.fileViewUrl,
+        ),
+        monthlyFolderViewUrl: RECEIPT_VIEW_URL_SCHEMA.parse(
+          normalizedReceipt.monthlyFolderViewUrl,
+        ),
+      };
+    } catch {
+      throw new Error(
+        `${operationName} requires every receipt to include valid Drive URLs.`,
+      );
+    }
+  });
 }
 
 function validateItem(
@@ -305,14 +315,14 @@ function validateItem(
   operationName: string,
   targetMonth: string,
 ): MonthlyExpenseItem {
-  const { loan, paymentLink, receipt, ...rawItem } = item;
+  const { loan, paymentLink, receipts, ...rawItem } = item;
   const normalizedItem = {
     ...rawItem,
     description: item.description.trim(),
     id: item.id.trim(),
   };
   const normalizedPaymentLink = validatePaymentLink(paymentLink, operationName);
-  const normalizedReceipt = validateReceipt(receipt, operationName);
+  const normalizedReceipts = validateReceipts(receipts, operationName);
 
   if (!normalizedItem.id) {
     throw new Error(
@@ -342,7 +352,7 @@ function validateItem(
     ...normalizedItem,
     ...(loan ? { loan: validateLoan(loan, operationName, targetMonth) } : {}),
     paymentLink: normalizedPaymentLink,
-    ...(normalizedReceipt ? { receipt: normalizedReceipt } : {}),
+    receipts: normalizedReceipts,
     total: calculateMonthlyExpenseTotal(normalizedItem),
   };
 }
@@ -449,15 +459,17 @@ export function toMonthlyExpensesDocumentInput(
         : {}),
       occurrencesPerMonth: item.occurrencesPerMonth,
       paymentLink: item.paymentLink,
-      ...(item.receipt
+      ...(item.receipts.length > 0
         ? {
-            receipt: {
-              fileId: item.receipt.fileId,
-              fileName: item.receipt.fileName,
-              fileViewUrl: item.receipt.fileViewUrl,
-              folderId: item.receipt.folderId,
-              folderViewUrl: item.receipt.folderViewUrl,
-            },
+            receipts: item.receipts.map((receipt) => ({
+              allReceiptsFolderId: receipt.allReceiptsFolderId,
+              allReceiptsFolderViewUrl: receipt.allReceiptsFolderViewUrl,
+              fileId: receipt.fileId,
+              fileName: receipt.fileName,
+              fileViewUrl: receipt.fileViewUrl,
+              monthlyFolderId: receipt.monthlyFolderId,
+              monthlyFolderViewUrl: receipt.monthlyFolderViewUrl,
+            })),
           }
         : {}),
       subtotal: item.subtotal,

@@ -2,15 +2,36 @@ export interface MonthlyExpenseReceiptUploadInput {
   contentBytes: Uint8Array;
   expenseDescription: string;
   fileName: string;
+  month: string;
   mimeType: string;
 }
 
 export interface MonthlyExpenseReceiptUpload {
+  allReceiptsFolderId: string;
+  allReceiptsFolderViewUrl: string;
   fileId: string;
   fileName: string;
   fileViewUrl: string;
-  folderId: string;
-  folderViewUrl: string;
+  monthlyFolderId: string;
+  monthlyFolderViewUrl: string;
+}
+
+export type MonthlyExpenseDriveResourceStatus = "normal" | "trashed" | "missing";
+
+export interface VerifyMonthlyExpenseReceiptInput {
+  allReceiptsFolderId: string;
+  fileId: string;
+  monthlyFolderId: string;
+}
+
+export interface MonthlyExpenseReceiptDriveStatus {
+  allReceiptsFolderStatus: MonthlyExpenseDriveResourceStatus;
+  fileStatus: MonthlyExpenseDriveResourceStatus;
+  monthlyFolderStatus: MonthlyExpenseDriveResourceStatus;
+}
+
+export interface DeleteMonthlyExpenseReceiptInput {
+  fileId: string;
 }
 
 export interface RenameMonthlyExpenseReceiptFolderInput {
@@ -19,10 +40,16 @@ export interface RenameMonthlyExpenseReceiptFolderInput {
 }
 
 export interface MonthlyExpenseReceiptsRepository {
+  deleteReceipt(
+    input: DeleteMonthlyExpenseReceiptInput,
+  ): Promise<void>;
   renameExpenseFolder(
     input: RenameMonthlyExpenseReceiptFolderInput,
   ): Promise<void>;
   saveReceipt(
     input: MonthlyExpenseReceiptUploadInput,
   ): Promise<MonthlyExpenseReceiptUpload>;
+  verifyReceipt(
+    input: VerifyMonthlyExpenseReceiptInput,
+  ): Promise<MonthlyExpenseReceiptDriveStatus>;
 }

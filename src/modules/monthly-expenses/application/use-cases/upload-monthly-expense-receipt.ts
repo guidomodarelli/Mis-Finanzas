@@ -6,6 +6,7 @@ import {
 import type { MonthlyExpenseReceiptsRepository } from "../../domain/repositories/monthly-expense-receipts-repository";
 
 const MAX_RECEIPT_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const ALLOWED_RECEIPT_MIME_TYPES = new Set([
   "application/pdf",
   "image/heic",
@@ -36,12 +37,14 @@ function validateReceiptCommand(
   contentBytes: Uint8Array;
   expenseDescription: string;
   fileName: string;
+  month: string;
   mimeType: string;
 } {
   const normalizedCommand = {
     contentBase64: command.contentBase64.trim(),
     expenseDescription: command.expenseDescription.trim(),
     fileName: command.fileName.trim(),
+    month: command.month.trim(),
     mimeType: command.mimeType.trim().toLowerCase(),
   };
 
@@ -53,6 +56,10 @@ function validateReceiptCommand(
 
   if (!normalizedCommand.fileName) {
     throw new Error("Monthly expense receipts require a non-empty file name.");
+  }
+
+  if (!MONTH_PATTERN.test(normalizedCommand.month)) {
+    throw new Error("Monthly expense receipts require a valid month in YYYY-MM format.");
   }
 
   if (!ALLOWED_RECEIPT_MIME_TYPES.has(normalizedCommand.mimeType)) {
@@ -79,6 +86,7 @@ function validateReceiptCommand(
     contentBytes,
     expenseDescription: normalizedCommand.expenseDescription,
     fileName: normalizedCommand.fileName,
+    month: normalizedCommand.month,
     mimeType: normalizedCommand.mimeType,
   };
 }

@@ -27,6 +27,25 @@ const RECEIPT_VIEW_URL_SCHEMA = z.url({
   hostname: z.regexes.domain,
 });
 
+const monthlyExpenseReceiptSchema = z.object({
+  allReceiptsFolderId: z.string().trim().min(1),
+  allReceiptsFolderViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+  fileId: z.string().trim().min(1),
+  fileName: z.string().trim().min(1),
+  fileViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+  monthlyFolderId: z.string().trim().min(1),
+  monthlyFolderViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+}).strict();
+
 function normalizeHttpPaymentLink(value: string): string {
   const normalizedValue = value.trim();
   const paymentLinkWithProtocol = PAYMENT_LINK_PROTOCOL_PATTERN.test(
@@ -67,29 +86,14 @@ const monthlyExpenseItemSchema = z.object({
     .transform((value) => normalizeHttpPaymentLink(value))
     .nullable()
     .optional(),
-  receipt: z
-    .object({
-      fileId: z.string().trim().min(1),
-      fileName: z.string().trim().min(1),
-      fileViewUrl: z
-        .string()
-        .trim()
-        .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
-      folderId: z.string().trim().min(1),
-      folderViewUrl: z
-        .string()
-        .trim()
-        .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
-    })
-    .nullable()
-    .optional(),
+  receipts: z.array(monthlyExpenseReceiptSchema).optional(),
   subtotal: z.number().positive(),
-});
+}).strict();
 
 const monthlyExpensesRequestBodySchema = z.object({
   items: z.array(monthlyExpenseItemSchema),
   month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-});
+}).strict();
 
 const monthlyExpensesGetQuerySchema = z.object({
   month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),

@@ -55,6 +55,7 @@ describe("saveMonthlyExpensesDocument", () => {
           id: "expense-1",
           occurrencesPerMonth: 1,
           paymentLink: null,
+          receipts: [],
           subtotal: 55032.07,
           total: 55032.07,
         },
@@ -78,14 +79,20 @@ describe("saveMonthlyExpensesDocument", () => {
             description: "Internet viejo",
             id: "expense-1",
             occurrencesPerMonth: 1,
-            receipt: {
-              fileId: "receipt-file-id",
-              fileName: "comprobante.pdf",
-              fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
-              folderId: "receipt-folder-id",
-              folderViewUrl:
-                "https://drive.google.com/drive/folders/receipt-folder-id",
-            },
+            receipts: [
+              {
+                allReceiptsFolderId: "receipt-folder-id",
+                allReceiptsFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-folder-id",
+                fileId: "receipt-file-id",
+                fileName: "comprobante.pdf",
+                fileViewUrl:
+                  "https://drive.google.com/file/d/receipt-file-id/view",
+                monthlyFolderId: "receipt-month-folder-id",
+                monthlyFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-month-folder-id",
+              },
+            ],
             subtotal: 100,
             total: 100,
           },
@@ -101,8 +108,10 @@ describe("saveMonthlyExpensesDocument", () => {
       }),
     };
     const receiptsRepository: MonthlyExpenseReceiptsRepository = {
+      deleteReceipt: jest.fn(),
       renameExpenseFolder: jest.fn().mockResolvedValue(undefined),
       saveReceipt: jest.fn(),
+      verifyReceipt: jest.fn(),
     };
 
     await saveMonthlyExpensesDocument({
@@ -113,14 +122,20 @@ describe("saveMonthlyExpensesDocument", () => {
             description: "Internet nuevo",
             id: "expense-1",
             occurrencesPerMonth: 1,
-            receipt: {
-              fileId: "receipt-file-id",
-              fileName: "comprobante.pdf",
-              fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
-              folderId: "receipt-folder-id",
-              folderViewUrl:
-                "https://drive.google.com/drive/folders/receipt-folder-id",
-            },
+            receipts: [
+              {
+                allReceiptsFolderId: "receipt-folder-id",
+                allReceiptsFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-folder-id",
+                fileId: "receipt-file-id",
+                fileName: "comprobante.pdf",
+                fileViewUrl:
+                  "https://drive.google.com/file/d/receipt-file-id/view",
+                monthlyFolderId: "receipt-month-folder-id",
+                monthlyFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-month-folder-id",
+              },
+            ],
             subtotal: 100,
           },
         ],
@@ -155,14 +170,20 @@ describe("saveMonthlyExpensesDocument", () => {
             description: "Internet",
             id: "expense-1",
             occurrencesPerMonth: 1,
-            receipt: {
-              fileId: "receipt-file-id",
-              fileName: "comprobante.pdf",
-              fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
-              folderId: "receipt-folder-id",
-              folderViewUrl:
-                "https://drive.google.com/drive/folders/receipt-folder-id",
-            },
+            receipts: [
+              {
+                allReceiptsFolderId: "receipt-folder-id",
+                allReceiptsFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-folder-id",
+                fileId: "receipt-file-id",
+                fileName: "comprobante.pdf",
+                fileViewUrl:
+                  "https://drive.google.com/file/d/receipt-file-id/view",
+                monthlyFolderId: "receipt-month-folder-id",
+                monthlyFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-month-folder-id",
+              },
+            ],
             subtotal: 100,
             total: 100,
           },
@@ -178,8 +199,10 @@ describe("saveMonthlyExpensesDocument", () => {
       }),
     };
     const receiptsRepository: MonthlyExpenseReceiptsRepository = {
+      deleteReceipt: jest.fn(),
       renameExpenseFolder: jest.fn().mockResolvedValue(undefined),
       saveReceipt: jest.fn(),
+      verifyReceipt: jest.fn(),
     };
 
     await saveMonthlyExpensesDocument({
@@ -190,14 +213,20 @@ describe("saveMonthlyExpensesDocument", () => {
             description: "Internet",
             id: "expense-1",
             occurrencesPerMonth: 1,
-            receipt: {
-              fileId: "receipt-file-id",
-              fileName: "comprobante.pdf",
-              fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
-              folderId: "receipt-folder-id",
-              folderViewUrl:
-                "https://drive.google.com/drive/folders/receipt-folder-id",
-            },
+            receipts: [
+              {
+                allReceiptsFolderId: "receipt-folder-id",
+                allReceiptsFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-folder-id",
+                fileId: "receipt-file-id",
+                fileName: "comprobante.pdf",
+                fileViewUrl:
+                  "https://drive.google.com/file/d/receipt-file-id/view",
+                monthlyFolderId: "receipt-month-folder-id",
+                monthlyFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-month-folder-id",
+              },
+            ],
             subtotal: 100,
           },
         ],

@@ -12,13 +12,18 @@ import {
 } from "@/modules/storage/infrastructure/google-drive/visible-drive-folder";
 
 import type {
+  DeleteMonthlyExpenseReceiptInput,
+  MonthlyExpenseDriveResourceStatus,
+  MonthlyExpenseReceiptDriveStatus,
   MonthlyExpenseReceiptUpload,
   MonthlyExpenseReceiptsRepository,
   MonthlyExpenseReceiptUploadInput,
   RenameMonthlyExpenseReceiptFolderInput,
+  VerifyMonthlyExpenseReceiptInput,
 } from "../../../domain/repositories/monthly-expense-receipts-repository";
 
 const DRIVE_FILE_FIELDS = "id,name,mimeType,parents,webViewLink";
+const DRIVE_FILE_STATUS_FIELDS = "id,trashed";
 const DRIVE_FILES_CREATE_ENDPOINT = "drive.files.create";
 const DRIVE_FILES_GET_ENDPOINT = "drive.files.get";
 const DRIVE_FILES_LIST_ENDPOINT = "drive.files.list";
@@ -62,14 +67,25 @@ export class GoogleDriveMonthlyExpenseReceiptsRepository
       );
     }
 
-    const expenseFolder = await this.getOrCreateExpenseFolder({
+    const allReceiptsFolder = await this.getOrCreateExpenseFolder({
       expenseDescription: input.expenseDescription,
       parentFolderId: rootFolder.id,
     });
 
-    if (!expenseFolder.id) {
+    if (!allReceiptsFolder.id) {
       throw new Error(
         "google-drive-monthly-expense-receipts-repository:saveReceipt could not resolve an expense folder id.",
+      );
+    }
+
+    const monthlyFolder = await this.getOrCreateMonthFolder({
+      month: input.month,
+      parentFolderId: allReceiptsFolder.id,
+    });
+
+    if (!monthlyFolder.id) {
+      throw new Error(
+        "google-drive-monthly-expense-receipts-repository:saveReceipt could not resolve a monthly folder id.",
       );
     }
 
@@ -82,7 +98,7 @@ export class GoogleDriveMonthlyExpenseReceiptsRepository
         },
         requestBody: {
           name: input.fileName,
-          parents: [expenseFolder.id],
+          parents: [monthlyFolder.id],
         },
       });
 
@@ -97,12 +113,14 @@ export class GoogleDriveMonthlyExpenseReceiptsRepository
       await this.trySetPublicReadPermission(fileId);
 
       return {
+        allReceiptsFolderId: allReceiptsFolder.id,
+        allReceiptsFolderViewUrl: buildDriveFolderViewUrl(allReceiptsFolder.id),
         fileId,
         fileName: response.data.name ?? input.fileName,
         fileViewUrl:
           response.data.webViewLink ?? buildDriveFileViewUrl(fileId),
-        folderId: expenseFolder.id,
-        folderViewUrl: buildDriveFolderViewUrl(expenseFolder.id),
+        monthlyFolderId: monthlyFolder.id,
+        monthlyFolderViewUrl: buildDriveFolderViewUrl(monthlyFolder.id),
       };
     } catch (error) {
       throw mapGoogleDriveStorageError(error, {
@@ -111,6 +129,65 @@ export class GoogleDriveMonthlyExpenseReceiptsRepository
           "google-drive-monthly-expense-receipts-repository:saveReceipt",
       });
     }
+  }
+
+  async deleteReceipt(input: DeleteMonthlyExpenseReceiptInput): Promise<void> {
+    const fileId = input.fileId.trim();
+
+    if (!fileId) {
+      throw new Error(
+        "google-drive-monthly-expense-receipts-repository:deleteReceipt requires a file id.",
+      );
+    }
+
+    try {
+      await this.driveClient.files.update({
+        fields: DRIVE_FILE_STATUS_FIELDS,
+        fileId,
+        requestBody: {
+          trashed: true,
+        },
+      });
+    } catch (error) {
+      const mappedError = mapGoogleDriveStorageError(error, {
+        endpoint: DRIVE_FILES_UPDATE_ENDPOINT,
+        operation:
+          "google-drive-monthly-expense-receipts-repository:deleteReceipt",
+      });
+
+      if (mappedError.code === "not_found") {
+        return;
+      }
+
+      throw mappedError;
+    }
+  }
+
+  async verifyReceipt(
+    input: VerifyMonthlyExpenseReceiptInput,
+  ): Promise<MonthlyExpenseReceiptDriveStatus> {
+    const allReceiptsFolderId = input.allReceiptsFolderId.trim();
+    const monthlyFolderId = input.monthlyFolderId.trim();
+    const fileId = input.fileId.trim();
+
+    if (!allReceiptsFolderId || !monthlyFolderId || !fileId) {
+      throw new Error(
+        "google-drive-monthly-expense-receipts-repository:verifyReceipt requires file and folder ids.",
+      );
+    }
+
+    const [allReceiptsFolderStatus, monthlyFolderStatus, fileStatus] =
+      await Promise.all([
+        this.getDriveResourceStatus(allReceiptsFolderId),
+        this.getDriveResourceStatus(monthlyFolderId),
+        this.getDriveResourceStatus(fileId),
+      ]);
+
+    return {
+      allReceiptsFolderStatus,
+      fileStatus,
+      monthlyFolderStatus,
+    };
   }
 
   private async trySetPublicReadPermission(fileId: string): Promise<void> {
@@ -225,6 +302,35 @@ export class GoogleDriveMonthlyExpenseReceiptsRepository
     }
   }
 
+  private async getDriveResourceStatus(
+    fileId: string,
+  ): Promise<MonthlyExpenseDriveResourceStatus> {
+    try {
+      const response = await this.driveClient.files.get({
+        fields: DRIVE_FILE_STATUS_FIELDS,
+        fileId,
+      });
+
+      if (!response.data.id) {
+        return "missing";
+      }
+
+      return response.data.trashed ? "trashed" : "normal";
+    } catch (error) {
+      const mappedError = mapGoogleDriveStorageError(error, {
+        endpoint: DRIVE_FILES_GET_ENDPOINT,
+        operation:
+          "google-drive-monthly-expense-receipts-repository:getDriveResourceStatus",
+      });
+
+      if (mappedError.code === "not_found") {
+        return "missing";
+      }
+
+      throw mappedError;
+    }
+  }
+
   private async getOrCreateExpenseFolder({
     expenseDescription,
     parentFolderId,
@@ -257,6 +363,42 @@ export class GoogleDriveMonthlyExpenseReceiptsRepository
         endpoint: DRIVE_FILES_CREATE_ENDPOINT,
         operation:
           "google-drive-monthly-expense-receipts-repository:getOrCreateExpenseFolder",
+      });
+    }
+  }
+
+  private async getOrCreateMonthFolder({
+    month,
+    parentFolderId,
+  }: {
+    month: string;
+    parentFolderId: string;
+  }) {
+    const existingFolder = await this.findExpenseFolderByName({
+      expenseDescription: month,
+      parentFolderId,
+    });
+
+    if (existingFolder?.id) {
+      return existingFolder;
+    }
+
+    try {
+      const response = await this.driveClient.files.create({
+        fields: DRIVE_FILE_FIELDS,
+        requestBody: {
+          mimeType: DRIVE_FOLDER_MIME_TYPE,
+          name: month,
+          parents: [parentFolderId],
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      throw mapGoogleDriveStorageError(error, {
+        endpoint: DRIVE_FILES_CREATE_ENDPOINT,
+        operation:
+          "google-drive-monthly-expense-receipts-repository:getOrCreateMonthFolder",
       });
     }
   }

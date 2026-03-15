@@ -1,21 +1,25 @@
 import type { MonthlyExpenseReceiptUpload } from "../../domain/repositories/monthly-expense-receipts-repository";
 
 export interface MonthlyExpenseReceiptResult {
+  allReceiptsFolderId: string;
+  allReceiptsFolderViewUrl: string;
   fileId: string;
   fileName: string;
   fileViewUrl: string;
-  folderId: string;
-  folderViewUrl: string;
+  monthlyFolderId: string;
+  monthlyFolderViewUrl: string;
 }
 
 export function toMonthlyExpenseReceiptResult(
   upload: MonthlyExpenseReceiptUpload,
 ): MonthlyExpenseReceiptResult {
   return {
+    allReceiptsFolderId: upload.allReceiptsFolderId,
+    allReceiptsFolderViewUrl: upload.allReceiptsFolderViewUrl,
     fileId: upload.fileId,
     fileName: upload.fileName,
     fileViewUrl: upload.fileViewUrl,
-    folderId: upload.folderId,
-    folderViewUrl: upload.folderViewUrl,
+    monthlyFolderId: upload.monthlyFolderId,
+    monthlyFolderViewUrl: upload.monthlyFolderViewUrl,
   };
 }

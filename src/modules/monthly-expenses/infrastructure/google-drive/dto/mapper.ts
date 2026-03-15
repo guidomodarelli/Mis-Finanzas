@@ -38,6 +38,25 @@ function isValidHttpPaymentLink(value: string): boolean {
 }
 
 const monthlyExpenseReceiptSchema = z.object({
+  allReceiptsFolderId: z.string().trim().min(1),
+  allReceiptsFolderViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+  fileId: z.string().trim().min(1),
+  fileName: z.string().trim().min(1),
+  fileViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+  monthlyFolderId: z.string().trim().min(1),
+  monthlyFolderViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+}).strict();
+
+const legacyMonthlyExpenseReceiptSchema = z.object({
   fileId: z.string().trim().min(1),
   fileName: z.string().trim().min(1),
   fileViewUrl: z
@@ -49,7 +68,7 @@ const monthlyExpenseReceiptSchema = z.object({
     .string()
     .trim()
     .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
-});
+}).strict();
 
 const googleDriveMonthlyExpenseItemSchema = z.object({
   currency: z.enum(["ARS", "USD"]),
@@ -71,9 +90,10 @@ const googleDriveMonthlyExpenseItemSchema = z.object({
     .transform((value) => normalizeHttpPaymentLink(value))
     .nullable()
     .optional(),
-  receipt: monthlyExpenseReceiptSchema.nullable().optional(),
+  receipt: legacyMonthlyExpenseReceiptSchema.nullable().optional(),
+  receipts: z.array(monthlyExpenseReceiptSchema).optional(),
   subtotal: z.number().positive(),
-});
+}).strict();
 
 const googleDriveMonthlyExpensesDocumentSchema = z.object({
   exchangeRateSnapshot: z
@@ -86,7 +106,7 @@ const googleDriveMonthlyExpensesDocumentSchema = z.object({
     .optional(),
   items: z.array(googleDriveMonthlyExpenseItemSchema),
   month: z.string().trim().min(1),
-});
+}).strict();
 
 const MONTHLY_EXPENSES_MIME_TYPE = "application/json";
 const SPANISH_MONTH_NAMES = [
@@ -146,7 +166,7 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             loan,
             occurrencesPerMonth,
             paymentLink,
-            receipt,
+            receipts,
             subtotal,
           }) => ({
             currency,
@@ -164,15 +184,17 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
               : {}),
             occurrencesPerMonth,
             paymentLink,
-            ...(receipt
+            ...(receipts.length > 0
               ? {
-                  receipt: {
+                  receipts: receipts.map((receipt) => ({
+                    allReceiptsFolderId: receipt.allReceiptsFolderId,
+                    allReceiptsFolderViewUrl: receipt.allReceiptsFolderViewUrl,
                     fileId: receipt.fileId,
                     fileName: receipt.fileName,
                     fileViewUrl: receipt.fileViewUrl,
-                    folderId: receipt.folderId,
-                    folderViewUrl: receipt.folderViewUrl,
-                  },
+                    monthlyFolderId: receipt.monthlyFolderId,
+                    monthlyFolderViewUrl: receipt.monthlyFolderViewUrl,
+                  })),
                 }
               : {}),
             subtotal,
@@ -215,7 +237,41 @@ export function parseGoogleDriveMonthlyExpensesContent(
       typeof content === "string" ? JSON.parse(content) : content ?? {};
     const parsedDto = googleDriveMonthlyExpensesDocumentSchema.parse(rawContent);
 
-    return createMonthlyExpensesDocument(parsedDto, operationName);
+    const normalizedDto = {
+      ...parsedDto,
+      items: parsedDto.items.map((item) => {
+        const normalizedReceipts = item.receipts && item.receipts.length > 0
+          ? item.receipts
+          : item.receipt
+          ? [
+              {
+                allReceiptsFolderId: item.receipt.folderId,
+                allReceiptsFolderViewUrl: item.receipt.folderViewUrl,
+                fileId: item.receipt.fileId,
+                fileName: item.receipt.fileName,
+                fileViewUrl: item.receipt.fileViewUrl,
+                monthlyFolderId: item.receipt.folderId,
+                monthlyFolderViewUrl: item.receipt.folderViewUrl,
+              },
+            ]
+          : [];
+
+        return {
+          currency: item.currency,
+          description: item.description,
+          id: item.id,
+          ...(item.loan ? { loan: item.loan } : {}),
+          occurrencesPerMonth: item.occurrencesPerMonth,
+          ...(item.paymentLink !== undefined
+            ? { paymentLink: item.paymentLink }
+            : {}),
+          receipts: normalizedReceipts,
+          subtotal: item.subtotal,
+        };
+      }),
+    };
+
+    return createMonthlyExpensesDocument(normalizedDto, operationName);
   } catch (error) {
     throw new Error(
       `${operationName} could not parse the stored monthly expenses document.`,

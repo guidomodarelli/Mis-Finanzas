@@ -43,6 +43,7 @@ describe("monthlyExpensesDocument", () => {
           },
           occurrencesPerMonth: 8,
           paymentLink: null,
+          receipts: [],
           subtotal: 6000,
           total: 48000,
         },
@@ -170,6 +171,7 @@ describe("monthlyExpensesDocument", () => {
       id: "expense-1",
       occurrencesPerMonth: 1,
       paymentLink: null,
+      receipts: [],
       subtotal: 2.49,
       total: 2.49,
     });
@@ -226,14 +228,20 @@ describe("monthlyExpensesDocument", () => {
             description: "Internet",
             id: "expense-1",
             occurrencesPerMonth: 1,
-            receipt: {
-              fileId: " receipt-file-id ",
-              fileName: " comprobante.pdf ",
-              fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
-              folderId: " receipt-folder-id ",
-              folderViewUrl:
-                "https://drive.google.com/drive/folders/receipt-folder-id",
-            },
+            receipts: [
+              {
+                allReceiptsFolderId: " receipt-folder-id ",
+                allReceiptsFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-folder-id",
+                fileId: " receipt-file-id ",
+                fileName: " comprobante.pdf ",
+                fileViewUrl:
+                  "https://drive.google.com/file/d/receipt-file-id/view",
+                monthlyFolderId: " receipt-month-folder-id ",
+                monthlyFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-month-folder-id",
+              },
+            ],
             subtotal: 45,
           },
         ],
@@ -242,13 +250,19 @@ describe("monthlyExpensesDocument", () => {
       "Saving monthly expenses",
     );
 
-    expect(result.items[0]?.receipt).toEqual({
-      fileId: "receipt-file-id",
-      fileName: "comprobante.pdf",
-      fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
-      folderId: "receipt-folder-id",
-      folderViewUrl: "https://drive.google.com/drive/folders/receipt-folder-id",
-    });
+    expect(result.items[0]?.receipts).toEqual([
+      {
+        allReceiptsFolderId: "receipt-folder-id",
+        allReceiptsFolderViewUrl:
+          "https://drive.google.com/drive/folders/receipt-folder-id",
+        fileId: "receipt-file-id",
+        fileName: "comprobante.pdf",
+        fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
+        monthlyFolderId: "receipt-month-folder-id",
+        monthlyFolderViewUrl:
+          "https://drive.google.com/drive/folders/receipt-month-folder-id",
+      },
+    ]);
   });
 
   it("rejects receipt metadata when Drive URLs are invalid", () => {
@@ -261,13 +275,19 @@ describe("monthlyExpensesDocument", () => {
               description: "Internet",
               id: "expense-1",
               occurrencesPerMonth: 1,
-              receipt: {
-                fileId: "receipt-file-id",
-                fileName: "comprobante.pdf",
-                fileViewUrl: "not-a-url",
-                folderId: "receipt-folder-id",
-                folderViewUrl: "https://drive.google.com/drive/folders/receipt-folder-id",
-              },
+              receipts: [
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  fileId: "receipt-file-id",
+                  fileName: "comprobante.pdf",
+                  fileViewUrl: "not-a-url",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+              ],
               subtotal: 45,
             },
           ],

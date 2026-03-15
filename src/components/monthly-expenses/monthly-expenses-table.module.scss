@@ -359,6 +359,7 @@
 
 .paymentLinkAction {
   display: inline-flex;
+  width: fit-content;
   align-items: center;
   gap: 0.35rem;
   color: var(--primary);
@@ -373,6 +374,95 @@
 .paymentLinkIcon {
   width: 0.85rem;
   height: 0.85rem;
+}
+
+.receiptActionsCell {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.receiptPrimaryActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.receiptCellContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.receiptDeleteButton {
+  color: var(--muted-foreground);
+}
+
+.receiptDeleteButton:hover {
+  color: var(--destructive);
+}
+
+.extraReceiptsTrigger {
+  min-width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.extraReceiptsTrigger:hover {
+  color: color-mix(in srgb, var(--primary) 82%, var(--foreground));
+}
+
+.extraReceiptsPopover {
+  width: fit-content;
+  max-width: min(24rem, calc(100vw - 2rem));
+}
+
+.extraReceiptsList {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.extraReceiptRow {
+  display: grid;
+  grid-template-columns: fit-content(100%) auto auto;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: start;
+}
+
+.mutedValue {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+.folderCellValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.driveStatusBadge {
+  display: inline-flex;
+  align-items: center;
+}
+
+.driveStatusWarning,
+.driveStatusError {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.driveStatusWarning {
+  color: #a16207;
+}
+
+.driveStatusError {
+  color: var(--destructive);
 }
 
 .feedback {

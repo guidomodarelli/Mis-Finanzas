@@ -5,16 +5,43 @@ import { GoogleDriveMonthlyExpenseReceiptsRepository } from "@/modules/monthly-e
 import { DrizzleMonthlyExpensesRepository } from "@/modules/monthly-expenses/infrastructure/turso/repositories/drizzle-monthly-expenses-repository";
 import { createGetMonthlyExchangeRateSnapshot } from "@/modules/exchange-rates/infrastructure/create-get-monthly-exchange-rate-snapshot";
 import { getGoogleDriveClientFromRequest } from "@/modules/auth/infrastructure/google-drive/google-drive-client";
+import {
+  appLogger,
+  createRequestLogContext,
+} from "@/modules/shared/infrastructure/observability/app-logger";
 
 export default createMonthlyExpensesApiHandler({
-  async load({ database, month, userSubject }) {
+  async load({ database, month, request, userSubject }) {
     const getExchangeRateSnapshot = createGetMonthlyExchangeRateSnapshot(database);
+    let receiptsRepository:
+      | GoogleDriveMonthlyExpenseReceiptsRepository
+      | undefined;
+
+    try {
+      const driveClient = await getGoogleDriveClientFromRequest(request);
+      receiptsRepository = new GoogleDriveMonthlyExpenseReceiptsRepository(
+        driveClient,
+      );
+    } catch (error) {
+      appLogger.warn(
+        "monthly-expenses API GET skipped Drive receipt status verification",
+        {
+          context: {
+            ...createRequestLogContext(request),
+            month,
+            operation: "monthly-expenses-api:get:skip-drive-verification",
+          },
+          error,
+        },
+      );
+    }
 
     return getMonthlyExpensesDocument({
       getExchangeRateSnapshot,
       query: {
         month,
       },
+      receiptsRepository,
       repository: new DrizzleMonthlyExpensesRepository(database, userSubject),
     });
   },

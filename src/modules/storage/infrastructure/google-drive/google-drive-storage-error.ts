@@ -13,6 +13,7 @@ export type GoogleDriveStorageErrorCode =
   | "api_disabled"
   | "insufficient_permissions"
   | "invalid_payload"
+  | "not_found"
   | "invalid_scope"
   | "unexpected";
 
@@ -119,6 +120,13 @@ function getGoogleDriveStorageErrorCode({
 
   if (httpStatus === 400 || normalizedApiStatus === "INVALID_ARGUMENT") {
     return "invalid_payload";
+  }
+
+  if (
+    httpStatus === 404 ||
+    normalizedApiStatus === "NOT_FOUND"
+  ) {
+    return "not_found";
   }
 
   return "unexpected";

@@ -45,8 +45,8 @@ async function syncReceiptFolderRenames({
       continue;
     }
 
-    const currentFolderId = currentItem.receipt?.folderId?.trim();
-    const nextFolderId = nextItem.receipt?.folderId?.trim();
+    const currentFolderId = currentItem.receipts[0]?.allReceiptsFolderId?.trim();
+    const nextFolderId = nextItem.receipts[0]?.allReceiptsFolderId?.trim();
 
     if (!currentFolderId || !nextFolderId || currentFolderId !== nextFolderId) {
       continue;

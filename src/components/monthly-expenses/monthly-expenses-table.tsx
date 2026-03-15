@@ -4,7 +4,14 @@ import type {
   SortingState,
   VisibilityState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ExternalLink, Paperclip } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowUpDown,
+  CircleX,
+  ExternalLink,
+  Paperclip,
+  Trash2,
+} from "lucide-react";
 import { z } from "zod";
 
 import { ExpenseRowActions } from "@/components/monthly-expenses/expense-row-actions";
@@ -69,6 +76,7 @@ const SORTABLE_COLUMN_IDS = new Set([
   "paymentLink",
   "receiptFileUrl",
   "receiptFolderUrl",
+  "allReceiptsFolderUrl",
   LOAN_SORT_COLUMN_ID,
   "lenderName",
   LOAN_INSTALLMENT_START_COLUMN_ID,
@@ -84,6 +92,7 @@ const PERSISTABLE_COLUMN_VISIBILITY_IDS = new Set([
   "paymentLink",
   "receiptFileUrl",
   "receiptFolderUrl",
+  "allReceiptsFolderUrl",
   LOAN_SORT_COLUMN_ID,
   "lenderName",
   LOAN_INSTALLMENT_START_COLUMN_ID,
@@ -412,14 +421,28 @@ export interface MonthlyExpensesEditableRow {
   loanTotalInstallments: number | null;
   occurrencesPerMonth: string;
   paymentLink: string;
-  receiptFileId: string;
-  receiptFileName: string;
-  receiptFileUrl: string;
-  receiptFolderId: string;
-  receiptFolderUrl: string;
+  receipts: MonthlyExpensesEditableReceipt[];
   startMonth: string;
   subtotal: string;
   total: string;
+}
+
+export type MonthlyExpenseDriveResourceStatus =
+  | "normal"
+  | "trashed"
+  | "missing";
+
+export interface MonthlyExpensesEditableReceipt {
+  allReceiptsFolderId: string;
+  allReceiptsFolderStatus?: MonthlyExpenseDriveResourceStatus;
+  allReceiptsFolderViewUrl: string;
+  fileId: string;
+  fileName: string;
+  fileStatus?: MonthlyExpenseDriveResourceStatus;
+  fileViewUrl: string;
+  monthlyFolderId: string;
+  monthlyFolderStatus?: MonthlyExpenseDriveResourceStatus;
+  monthlyFolderViewUrl: string;
 }
 
 interface MonthlyExpensesTableProps {
@@ -459,6 +482,10 @@ interface MonthlyExpensesTableProps {
   onExpenseLenderSelect: (lenderId: string | null) => void;
   onExpenseLoanToggle: (checked: boolean) => void;
   onMonthChange: (value: string) => void;
+  onDeleteReceipt: (args: {
+    expenseId: string;
+    receiptFileId: string;
+  }) => void;
   onUploadReceipt: (expenseId: string) => void;
   onRequestCloseExpenseSheet: () => void;
   onSaveExpense: () => void;
@@ -696,6 +723,45 @@ function getValidHttpUrl(value: string): string | null {
   }
 }
 
+function getDriveStatusMessage(
+  status: MonthlyExpenseDriveResourceStatus | undefined,
+): string | null {
+  if (status === "trashed") {
+    return "Este recurso está en la papelera de Drive.";
+  }
+
+  if (status === "missing") {
+    return "Este recurso fue eliminado en Drive.";
+  }
+
+  return null;
+}
+
+function DriveStatusBadge({
+  status,
+}: {
+  status: MonthlyExpenseDriveResourceStatus | undefined;
+}) {
+  const message = getDriveStatusMessage(status);
+
+  if (!message || !status) {
+    return null;
+  }
+
+  const icon = status === "trashed"
+    ? <AlertTriangle aria-hidden="true" className={styles.driveStatusWarning} />
+    : <CircleX aria-hidden="true" className={styles.driveStatusError} />;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={styles.driveStatusBadge}>{icon}</span>
+      </TooltipTrigger>
+      <TooltipContent>{message}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function MonthlyExpensesTable({
   actionDisabled,
   changedFields,
@@ -721,6 +787,7 @@ export function MonthlyExpensesTable({
   onExpenseFieldChange,
   onExpenseLenderSelect,
   onExpenseLoanToggle,
+  onDeleteReceipt,
   onMonthChange,
   onUploadReceipt,
   onRequestCloseExpenseSheet,
@@ -981,33 +1048,14 @@ export function MonthlyExpensesTable({
         },
       },
       {
-        accessorKey: "receiptFileUrl",
+        id: "receiptFileUrl",
+        accessorFn: (row) => row.receipts[0]?.fileViewUrl ?? "",
         cell: ({ row }) => {
-          const receiptFileUrl = getValidHttpUrl(row.original.receiptFileUrl);
-
-          if (receiptFileUrl) {
-            return (
-              <div className={styles.receiptCellContent}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <a
-                      className={styles.paymentLinkAction}
-                      href={receiptFileUrl}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      Ver comprobante
-                      <ExternalLink aria-hidden="true" className={styles.paymentLinkIcon} />
-                    </a>
-                  </TooltipTrigger>
-                  <TooltipContent>Abrir comprobante en Drive</TooltipContent>
-                </Tooltip>
-              </div>
-            );
-          }
+          const [firstReceipt, ...extraReceipts] = row.original.receipts;
+          const firstReceiptFileUrl = getValidHttpUrl(firstReceipt?.fileViewUrl ?? "");
 
           return (
-            <div className={styles.receiptCellContent}>
+            <div className={styles.receiptActionsCell}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -1023,55 +1071,207 @@ export function MonthlyExpensesTable({
                 </TooltipTrigger>
                 <TooltipContent>Adjuntar comprobante</TooltipContent>
               </Tooltip>
+
+              {firstReceipt && firstReceiptFileUrl ? (
+                <div className={styles.receiptPrimaryActions}>
+                  <DriveStatusBadge status={firstReceipt.fileStatus} />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a
+                        className={styles.paymentLinkAction}
+                        href={firstReceiptFileUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        Ver comprobante
+                        <ExternalLink aria-hidden="true" className={styles.paymentLinkIcon} />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent>Abrir comprobante en Drive</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        aria-label={`Eliminar comprobante ${firstReceipt.fileName}`}
+                        className={styles.receiptDeleteButton}
+                        disabled={actionDisabled}
+                        onClick={() =>
+                          onDeleteReceipt({
+                            expenseId: row.original.id,
+                            receiptFileId: firstReceipt.fileId,
+                          })}
+                        size="icon-sm"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Eliminar comprobante</TooltipContent>
+                  </Tooltip>
+                </div>
+              ) : null}
+
+              {extraReceipts.length > 0 ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      className={styles.extraReceiptsTrigger}
+                      type="button"
+                      variant="link"
+                    >
+                      +{extraReceipts.length}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className={styles.extraReceiptsPopover}>
+                    <div className={styles.extraReceiptsList}>
+                      {extraReceipts.map((receipt, index) => {
+                        const receiptFileUrl = getValidHttpUrl(receipt.fileViewUrl);
+
+                        return (
+                          <div className={styles.extraReceiptRow} key={receipt.fileId}>
+                            <DriveStatusBadge status={receipt.fileStatus} />
+                            {receiptFileUrl ? (
+                              <a
+                                className={styles.paymentLinkAction}
+                                href={receiptFileUrl}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                              >
+                                Ver comprobante parte {index + 2}
+                                <ExternalLink
+                                  aria-hidden="true"
+                                  className={styles.paymentLinkIcon}
+                                />
+                              </a>
+                            ) : (
+                              <span className={styles.mutedValue}>
+                                Comprobante parte {index + 2} sin enlace
+                              </span>
+                            )}
+                            <Button
+                              aria-label={`Eliminar comprobante ${receipt.fileName}`}
+                              className={styles.receiptDeleteButton}
+                              disabled={actionDisabled}
+                              onClick={() =>
+                                onDeleteReceipt({
+                                  expenseId: row.original.id,
+                                  receiptFileId: receipt.fileId,
+                                })}
+                              size="icon-sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Trash2 aria-hidden="true" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              ) : null}
             </div>
           );
         },
-        header: getSortableHeader("Comprobante"),
-        meta: { label: "Comprobante" },
-        sortingFn: (rowA, rowB) => {
-          const leftHasReceipt =
-            getValidHttpUrl(rowA.original.receiptFileUrl) != null ? 1 : 0;
-          const rightHasReceipt =
-            getValidHttpUrl(rowB.original.receiptFileUrl) != null ? 1 : 0;
-
-          return leftHasReceipt - rightHasReceipt;
-        },
+        header: getSortableHeader("Comprobantes"),
+        meta: { label: "Comprobantes" },
+        sortingFn: (rowA, rowB) => rowA.original.receipts.length - rowB.original.receipts.length,
       },
       {
-        accessorKey: "receiptFolderUrl",
+        id: "receiptFolderUrl",
+        accessorFn: (row) => row.receipts[0]?.monthlyFolderViewUrl ?? "",
         cell: ({ row }) => {
-          const receiptFolderUrl = getValidHttpUrl(row.original.receiptFolderUrl);
+          const firstReceipt = row.original.receipts[0];
+          const receiptFolderUrl = getValidHttpUrl(
+            firstReceipt?.monthlyFolderViewUrl ?? "",
+          );
 
           if (!receiptFolderUrl) {
-            return "-";
+            return (
+              <div className={styles.folderCellValue}>
+                <span>-</span>
+                <DriveStatusBadge status={firstReceipt?.monthlyFolderStatus} />
+              </div>
+            );
           }
 
           return (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  className={styles.paymentLinkAction}
-                  href={receiptFolderUrl}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  Ver carpeta
-                  <ExternalLink aria-hidden="true" className={styles.paymentLinkIcon} />
-                </a>
-              </TooltipTrigger>
-              <TooltipContent>Abrir carpeta de comprobantes en Drive</TooltipContent>
-            </Tooltip>
+            <div className={styles.folderCellValue}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    className={styles.paymentLinkAction}
+                    href={receiptFolderUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    Ver carpeta del mes actual
+                    <ExternalLink aria-hidden="true" className={styles.paymentLinkIcon} />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent>Abrir carpeta del mes actual en Drive</TooltipContent>
+              </Tooltip>
+              <DriveStatusBadge status={firstReceipt?.monthlyFolderStatus} />
+            </div>
+          );
+        },
+        header: getSortableHeader("Carpeta del mes actual"),
+        meta: { label: "Carpeta del mes actual" },
+        sortingFn: (rowA, rowB) => {
+          const leftHasFolder = rowA.original.receipts[0]?.monthlyFolderViewUrl ? 1 : 0;
+          const rightHasFolder = rowB.original.receipts[0]?.monthlyFolderViewUrl ? 1 : 0;
+
+          return leftHasFolder - rightHasFolder;
+        },
+      },
+      {
+        id: "allReceiptsFolderUrl",
+        accessorFn: (row) => row.receipts[0]?.allReceiptsFolderViewUrl ?? "",
+        cell: ({ row }) => {
+          const firstReceipt = row.original.receipts[0];
+          const allReceiptsFolderUrl = getValidHttpUrl(
+            firstReceipt?.allReceiptsFolderViewUrl ?? "",
+          );
+
+          if (!allReceiptsFolderUrl) {
+            return (
+              <div className={styles.folderCellValue}>
+                <span>-</span>
+                <DriveStatusBadge status={firstReceipt?.allReceiptsFolderStatus} />
+              </div>
+            );
+          }
+
+          return (
+            <div className={styles.folderCellValue}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <a
+                    className={styles.paymentLinkAction}
+                    href={allReceiptsFolderUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    Ver carpeta
+                    <ExternalLink aria-hidden="true" className={styles.paymentLinkIcon} />
+                  </a>
+                </TooltipTrigger>
+                <TooltipContent>Abrir carpeta con todos los comprobantes en Drive</TooltipContent>
+              </Tooltip>
+              <DriveStatusBadge status={firstReceipt?.allReceiptsFolderStatus} />
+            </div>
           );
         },
         header: getSortableHeader("Carpeta de comprobantes"),
         meta: { label: "Carpeta de comprobantes" },
         sortingFn: (rowA, rowB) => {
-          const leftHasFolder =
-            getValidHttpUrl(rowA.original.receiptFolderUrl) != null ? 1 : 0;
-          const rightHasFolder =
-            getValidHttpUrl(rowB.original.receiptFolderUrl) != null ? 1 : 0;
+          const leftHasAllReceiptsFolder =
+            rowA.original.receipts[0]?.allReceiptsFolderViewUrl ? 1 : 0;
+          const rightHasAllReceiptsFolder =
+            rowB.original.receipts[0]?.allReceiptsFolderViewUrl ? 1 : 0;
 
-          return leftHasFolder - rightHasFolder;
+          return leftHasAllReceiptsFolder - rightHasAllReceiptsFolder;
         },
       },
       {
@@ -1286,6 +1486,7 @@ export function MonthlyExpensesTable({
       loanSortDirection,
       loanSortMode,
       onDeleteExpense,
+      onDeleteReceipt,
       onEditExpense,
       onUploadReceipt,
     ],

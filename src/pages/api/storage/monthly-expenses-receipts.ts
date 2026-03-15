@@ -1,4 +1,7 @@
 import {
+  deleteMonthlyExpenseReceipt,
+} from "@/modules/monthly-expenses/application/use-cases/delete-monthly-expense-receipt";
+import {
   uploadMonthlyExpenseReceipt,
 } from "@/modules/monthly-expenses/application/use-cases/upload-monthly-expense-receipt";
 import {
@@ -17,6 +20,12 @@ export const config = {
 };
 
 export default createMonthlyExpenseReceiptsApiHandler({
+  async remove({ command, driveClient }) {
+    await deleteMonthlyExpenseReceipt({
+      command,
+      repository: new GoogleDriveMonthlyExpenseReceiptsRepository(driveClient),
+    });
+  },
   async upload({ command, driveClient }) {
     return uploadMonthlyExpenseReceipt({
       command,

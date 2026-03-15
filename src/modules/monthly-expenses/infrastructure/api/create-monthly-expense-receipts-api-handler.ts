@@ -25,8 +25,13 @@ const uploadMonthlyExpenseReceiptBodySchema = z.object({
   contentBase64: z.string().trim().min(1),
   expenseDescription: z.string().trim().min(1),
   fileName: z.string().trim().min(1),
+  month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   mimeType: z.string().trim().min(1),
-});
+}).strict();
+
+const deleteMonthlyExpenseReceiptQuerySchema = z.object({
+  fileId: z.string().trim().min(1),
+}).strict();
 
 async function getDefaultDriveClient(request: NextApiRequest) {
   const { getGoogleDriveClientFromRequest } = await import(
@@ -38,9 +43,17 @@ async function getDefaultDriveClient(request: NextApiRequest) {
 
 export function createMonthlyExpenseReceiptsApiHandler<TResult>({
   getDriveClient = getDefaultDriveClient,
+  remove,
   upload,
 }: {
   getDriveClient?: (request: NextApiRequest) => Promise<drive_v3.Drive>;
+  remove: (dependencies: {
+    command: {
+      fileId: string;
+    };
+    driveClient: drive_v3.Drive;
+    request: NextApiRequest;
+  }) => Promise<void>;
   upload: (dependencies: {
     command: UploadMonthlyExpenseReceiptCommand;
     driveClient: drive_v3.Drive;
@@ -50,7 +63,7 @@ export function createMonthlyExpenseReceiptsApiHandler<TResult>({
   return async function monthlyExpenseReceiptsApiHandler(request, response) {
     const requestContext = createRequestLogContext(request);
 
-    if (request.method !== "POST") {
+    if (request.method !== "POST" && request.method !== "DELETE") {
       appLogger.warn(
         "monthly-expense-receipts API received an unsupported method",
         {
@@ -61,12 +74,95 @@ export function createMonthlyExpenseReceiptsApiHandler<TResult>({
         },
       );
 
-      response.setHeader("Allow", "POST");
+      response.setHeader("Allow", "POST, DELETE");
 
       return response.status(405).json({
         error:
-          "monthly-expense-receipts only supports POST requests on this endpoint.",
+          "monthly-expense-receipts only supports POST and DELETE requests on this endpoint.",
       });
+    }
+
+    if (request.method === "DELETE") {
+      const rawFileId = Array.isArray(request.query.fileId)
+        ? request.query.fileId[0]
+        : request.query.fileId;
+      const parsedQuery = deleteMonthlyExpenseReceiptQuerySchema.safeParse({
+        fileId: rawFileId,
+      });
+
+      if (!parsedQuery.success) {
+        return response.status(400).json({
+          error:
+            "monthly-expense-receipts requires fileId for DELETE requests.",
+        });
+      }
+
+      try {
+        const driveClient = await getDriveClient(request);
+        await remove({
+          command: parsedQuery.data,
+          driveClient,
+          request,
+        });
+
+        response.status(204).end();
+        return;
+      } catch (error) {
+        appLogger.error("monthly-expense-receipts API delete request failed", {
+          context: {
+            ...requestContext,
+            operation: "monthly-expense-receipts-api:delete",
+          },
+          error,
+        });
+
+        if (error instanceof GoogleOAuthAuthenticationError) {
+          return response.status(401).json({
+            error:
+              "Google authentication is required before deleting monthly expense receipts.",
+          });
+        }
+
+        if (error instanceof GoogleOAuthConfigurationError) {
+          return response.status(500).json({
+            error:
+              "Google OAuth server configuration is incomplete for monthly expense receipt deletions.",
+          });
+        }
+
+        if (error instanceof GoogleDriveStorageError) {
+          if (error.code === "api_disabled") {
+            return response.status(503).json({
+              error:
+                "Google Drive API is not enabled for this project yet. Enable drive.googleapis.com in Google Cloud and try again.",
+            });
+          }
+
+          if (error.code === "invalid_scope") {
+            return response.status(403).json({
+              error:
+                "The current Google session is missing the Drive permissions required to delete receipts. Sign out, connect Google again, and approve Drive access.",
+            });
+          }
+
+          if (error.code === "insufficient_permissions") {
+            return response.status(403).json({
+              error:
+                "Google Drive denied permission to delete this receipt. Verify the selected Google account can update Drive files and try again.",
+            });
+          }
+        }
+
+        if (error instanceof Error) {
+          return response.status(400).json({
+            error: error.message,
+          });
+        }
+
+        return response.status(500).json({
+          error: "We could not delete the monthly expense receipt right now. Try again later.",
+        });
+      }
     }
 
     const parsedBody = uploadMonthlyExpenseReceiptBodySchema.safeParse(request.body);
@@ -84,7 +180,7 @@ export function createMonthlyExpenseReceiptsApiHandler<TResult>({
 
       return response.status(400).json({
         error:
-          "monthly-expense-receipts requires fileName, mimeType, contentBase64, and expenseDescription.",
+          "monthly-expense-receipts requires fileName, mimeType, contentBase64, expenseDescription, and month.",
       });
     }
 

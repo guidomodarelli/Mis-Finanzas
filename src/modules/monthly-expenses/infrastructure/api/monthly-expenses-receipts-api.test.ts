@@ -7,11 +7,15 @@ describe("monthly-expenses-receipts-api client", () => {
     const fetchImplementation = jest.fn().mockResolvedValue({
       json: async () => ({
         data: {
+          allReceiptsFolderId: "all-receipts-folder-id",
+          allReceiptsFolderViewUrl:
+            "https://drive.google.com/drive/folders/all-receipts-folder-id",
           fileId: "receipt-file-id",
           fileName: "comprobante.pdf",
           fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
-          folderId: "receipt-folder-id",
-          folderViewUrl: "https://drive.google.com/drive/folders/receipt-folder-id",
+          monthlyFolderId: "receipt-folder-id",
+          monthlyFolderViewUrl:
+            "https://drive.google.com/drive/folders/receipt-folder-id",
         },
       }),
       ok: true,
@@ -22,6 +26,7 @@ describe("monthly-expenses-receipts-api client", () => {
         contentBase64: "dGVzdA==",
         expenseDescription: "Internet",
         fileName: "comprobante.pdf",
+        month: "2026-03",
         mimeType: "application/pdf",
       },
       fetchImplementation,

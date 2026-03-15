@@ -15,6 +15,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
           id: "expense-1",
           occurrencesPerMonth: 1,
           paymentLink: null,
+          receipts: [],
           subtotal: 55032.07,
           total: 55032.07,
         },
@@ -64,6 +65,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
           },
           occurrencesPerMonth: 1,
           paymentLink: null,
+          receipts: [],
           subtotal: 50000,
           total: 50000,
         },
@@ -122,6 +124,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
           id: "expense-1",
           occurrencesPerMonth: 1,
           paymentLink: null,
+          receipts: [],
           subtotal: 2.49,
           total: 2.49,
         },
@@ -167,6 +170,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
           },
           occurrencesPerMonth: 1,
           paymentLink: null,
+          receipts: [],
           subtotal: 50000,
           total: 50000,
         },
@@ -203,6 +207,7 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
           id: "expense-1",
           occurrencesPerMonth: 1,
           paymentLink: "pagos.empresa-energia.com",
+          receipts: [],
           subtotal: 45,
           total: 45,
         },
@@ -241,5 +246,44 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
         "Loading monthly expenses",
       ),
     ).toThrow("Loading monthly expenses could not parse the stored monthly expenses document.");
+  });
+
+  it("parses legacy singular receipt payloads into receipts array", () => {
+    const result = parseGoogleDriveMonthlyExpensesContent(
+      JSON.stringify({
+        items: [
+          {
+            currency: "ARS",
+            description: "Internet",
+            id: "expense-1",
+            occurrencesPerMonth: 1,
+            receipt: {
+              fileId: "receipt-file-id",
+              fileName: "comprobante.pdf",
+              fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
+              folderId: "receipt-folder-id",
+              folderViewUrl: "https://drive.google.com/drive/folders/receipt-folder-id",
+            },
+            subtotal: 100,
+          },
+        ],
+        month: "2026-03",
+      }),
+      "Loading monthly expenses",
+    );
+
+    expect(result.items[0]?.receipts).toEqual([
+      {
+        allReceiptsFolderId: "receipt-folder-id",
+        allReceiptsFolderViewUrl:
+          "https://drive.google.com/drive/folders/receipt-folder-id",
+        fileId: "receipt-file-id",
+        fileName: "comprobante.pdf",
+        fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
+        monthlyFolderId: "receipt-folder-id",
+        monthlyFolderViewUrl:
+          "https://drive.google.com/drive/folders/receipt-folder-id",
+      },
+    ]);
   });
 });

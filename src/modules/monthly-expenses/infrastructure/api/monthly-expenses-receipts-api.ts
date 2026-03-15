@@ -6,24 +6,31 @@ const uploadMonthlyExpenseReceiptRequestSchema = z.object({
   contentBase64: z.string().trim().min(1),
   expenseDescription: z.string().trim().min(1),
   fileName: z.string().trim().min(1),
+  month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
   mimeType: z.string().trim().min(1),
-});
+}).strict();
+
+const deleteMonthlyExpenseReceiptRequestSchema = z.object({
+  fileId: z.string().trim().min(1),
+}).strict();
 
 const monthlyExpenseReceiptResultSchema = z.object({
+  allReceiptsFolderId: z.string().trim().min(1),
+  allReceiptsFolderViewUrl: z.string().trim().url(),
   fileId: z.string().trim().min(1),
   fileName: z.string().trim().min(1),
   fileViewUrl: z.string().trim().url(),
-  folderId: z.string().trim().min(1),
-  folderViewUrl: z.string().trim().url(),
-});
+  monthlyFolderId: z.string().trim().min(1),
+  monthlyFolderViewUrl: z.string().trim().url(),
+}).strict();
 
 const monthlyExpenseReceiptSuccessEnvelopeSchema = z.object({
   data: monthlyExpenseReceiptResultSchema,
-});
+}).strict();
 
 const monthlyExpenseReceiptErrorEnvelopeSchema = z.object({
   error: z.string().trim().min(1),
-});
+}).strict();
 
 export type UploadMonthlyExpenseReceiptRequest = z.infer<
   typeof uploadMonthlyExpenseReceiptRequestSchema
@@ -66,4 +73,34 @@ export async function uploadMonthlyExpenseReceiptViaApi(
   }
 
   return monthlyExpenseReceiptSuccessEnvelopeSchema.parse(responseJson).data;
+}
+
+export async function deleteMonthlyExpenseReceiptViaApi(
+  payload: z.infer<typeof deleteMonthlyExpenseReceiptRequestSchema>,
+  fetchImplementation: typeof fetch = fetch,
+): Promise<void> {
+  const normalizedPayload = deleteMonthlyExpenseReceiptRequestSchema.parse(payload);
+  const searchParams = new URLSearchParams({
+    fileId: normalizedPayload.fileId,
+  });
+  const response = await fetchImplementation(
+    `/api/storage/monthly-expenses-receipts?${searchParams.toString()}`,
+    {
+      headers: withCorrelationIdHeaders(),
+      method: "DELETE",
+    },
+  );
+
+  if (!response.ok) {
+    const responseJson = await response.json();
+    const parsedError = monthlyExpenseReceiptErrorEnvelopeSchema.safeParse(
+      responseJson,
+    );
+
+    throw new MonthlyExpenseReceiptsApiError(
+      parsedError.success
+        ? parsedError.data.error
+        : "monthly-expenses-receipts-api:/api/storage/monthly-expenses-receipts returned an unexpected error response.",
+    );
+  }
 }

@@ -35,6 +35,31 @@ function isValidHttpPaymentLink(value: string): boolean {
   }
 }
 
+const monthlyExpenseReceiptSchema = z.object({
+  allReceiptsFolderId: z.string().trim().min(1),
+  allReceiptsFolderViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+  fileId: z.string().trim().min(1),
+  fileName: z.string().trim().min(1),
+  fileViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+  monthlyFolderId: z.string().trim().min(1),
+  monthlyFolderViewUrl: z
+    .string()
+    .trim()
+    .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+}).strict();
+
+const monthlyExpenseReceiptResponseSchema = monthlyExpenseReceiptSchema.extend({
+  allReceiptsFolderStatus: z.enum(["normal", "trashed", "missing"]).optional(),
+  fileStatus: z.enum(["normal", "trashed", "missing"]).optional(),
+  monthlyFolderStatus: z.enum(["normal", "trashed", "missing"]).optional(),
+}).strict();
+
 const monthlyExpenseItemSchema = z.object({
   currency: z.enum(["ARS", "USD"]),
   description: z.string().trim().min(1),
@@ -55,33 +80,18 @@ const monthlyExpenseItemSchema = z.object({
     .transform((value) => normalizeHttpPaymentLink(value))
     .nullable()
     .optional(),
-  receipt: z
-    .object({
-      fileId: z.string().trim().min(1),
-      fileName: z.string().trim().min(1),
-      fileViewUrl: z
-        .string()
-        .trim()
-        .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
-      folderId: z.string().trim().min(1),
-      folderViewUrl: z
-        .string()
-        .trim()
-        .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
-    })
-    .nullable()
-    .optional(),
+  receipts: z.array(monthlyExpenseReceiptSchema).optional(),
   subtotal: z.number().positive(),
-});
+}).strict();
 
 const monthlyExpensesRequestSchema = z.object({
   items: z.array(monthlyExpenseItemSchema),
   month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-});
+}).strict();
 
 const monthlyExpensesErrorEnvelopeSchema = z.object({
   error: z.string().trim().min(1),
-});
+}).strict();
 
 const monthlyExpensesDocumentEnvelopeSchema = z.object({
   data: z.object({
@@ -118,29 +128,14 @@ const monthlyExpensesDocumentEnvelopeSchema = z.object({
           .transform((value) => normalizeHttpPaymentLink(value))
           .nullable()
           .optional(),
-        receipt: z
-          .object({
-            fileId: z.string().trim().min(1),
-            fileName: z.string().trim().min(1),
-            fileViewUrl: z
-              .string()
-              .trim()
-              .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
-            folderId: z.string().trim().min(1),
-            folderViewUrl: z
-              .string()
-              .trim()
-              .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
-          })
-          .nullable()
-          .optional(),
+        receipts: z.array(monthlyExpenseReceiptResponseSchema).optional(),
         subtotal: z.number().positive(),
         total: z.number().nonnegative(),
-      }),
+      }).strict(),
     ),
     month: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-  }),
-});
+  }).strict(),
+}).strict();
 
 export class MonthlyExpensesApiError extends Error {
   constructor(message: string, options?: ErrorOptions) {

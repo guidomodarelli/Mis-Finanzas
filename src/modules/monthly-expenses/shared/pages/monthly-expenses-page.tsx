@@ -17,6 +17,7 @@ import { LendersPanel } from "@/components/monthly-expenses/lenders-panel";
 import { MonthlyExpensesLoansReport } from "@/components/monthly-expenses/monthly-expenses-loans-report";
 import {
   MonthlyExpensesTable,
+  type MonthlyExpensesEditableReceipt,
   type MonthlyExpensesEditableRow,
 } from "@/components/monthly-expenses/monthly-expenses-table";
 import type { ExpenseEditableFieldName } from "@/components/monthly-expenses/expense-sheet";
@@ -48,8 +49,9 @@ import {
 import {
   getMonthlyExpensesDocumentViaApi,
   saveMonthlyExpensesDocumentViaApi,
-} from "@/modules/monthly-expenses/infrastructure/api/monthly-expenses-api";
+} from "../../infrastructure/api/monthly-expenses-api";
 import {
+  deleteMonthlyExpenseReceiptViaApi,
   uploadMonthlyExpenseReceiptViaApi,
 } from "@/modules/monthly-expenses/infrastructure/api/monthly-expenses-receipts-api";
 import type { StorageBootstrapResult } from "@/modules/storage/application/results/storage-bootstrap";
@@ -252,15 +254,32 @@ function createEmptyRow(): MonthlyExpensesEditableRow {
     loanTotalInstallments: null,
     occurrencesPerMonth: "1",
     paymentLink: "",
-    receiptFileId: "",
-    receiptFileName: "",
-    receiptFileUrl: "",
-    receiptFolderId: "",
-    receiptFolderUrl: "",
+    receipts: [],
     startMonth: "",
     subtotal: "",
     total: "0.00",
   };
+}
+
+function toEditableReceipts(
+  receipts: MonthlyExpensesDocumentResult["items"][number]["receipts"] | undefined,
+): MonthlyExpensesEditableReceipt[] {
+  if (!receipts || receipts.length === 0) {
+    return [];
+  }
+
+  return receipts.map((receipt) => ({
+    allReceiptsFolderId: receipt.allReceiptsFolderId,
+    allReceiptsFolderStatus: receipt.allReceiptsFolderStatus,
+    allReceiptsFolderViewUrl: receipt.allReceiptsFolderViewUrl,
+    fileId: receipt.fileId,
+    fileName: receipt.fileName,
+    fileStatus: receipt.fileStatus,
+    fileViewUrl: receipt.fileViewUrl,
+    monthlyFolderId: receipt.monthlyFolderId,
+    monthlyFolderStatus: receipt.monthlyFolderStatus,
+    monthlyFolderViewUrl: receipt.monthlyFolderViewUrl,
+  }));
 }
 
 function toEditableRows(
@@ -296,11 +315,7 @@ function toEditableRows(
       : "",
     occurrencesPerMonth: formatEditableNumber(item.occurrencesPerMonth),
     paymentLink: item.paymentLink?.trim() ?? "",
-    receiptFileId: item.receipt?.fileId ?? "",
-    receiptFileName: item.receipt?.fileName ?? "",
-    receiptFileUrl: item.receipt?.fileViewUrl ?? "",
-    receiptFolderId: item.receipt?.folderId ?? "",
-    receiptFolderUrl: item.receipt?.folderViewUrl ?? "",
+    receipts: toEditableReceipts(item.receipts),
     startMonth: item.loan?.startMonth ?? "",
     subtotal: formatEditableNumber(item.subtotal),
     total: item.total.toFixed(2),
@@ -554,21 +569,20 @@ function toSaveMonthlyExpensesCommand(
         : {
             paymentLink: null,
           }),
-      ...(row.receiptFileId.trim().length > 0 &&
-      row.receiptFolderId.trim().length > 0 &&
-      row.receiptFileUrl.trim().length > 0 &&
-      row.receiptFolderUrl.trim().length > 0
+      ...(row.receipts.length > 0
         ? {
-            receipt: {
-              fileId: row.receiptFileId.trim(),
+            receipts: row.receipts.map((receipt) => ({
+              allReceiptsFolderId: receipt.allReceiptsFolderId.trim(),
+              allReceiptsFolderViewUrl: receipt.allReceiptsFolderViewUrl.trim(),
+              fileId: receipt.fileId.trim(),
               fileName:
-                row.receiptFileName.trim().length > 0
-                  ? row.receiptFileName.trim()
+                receipt.fileName.trim().length > 0
+                  ? receipt.fileName.trim()
                   : "Comprobante",
-              fileViewUrl: row.receiptFileUrl.trim(),
-              folderId: row.receiptFolderId.trim(),
-              folderViewUrl: row.receiptFolderUrl.trim(),
-            },
+              fileViewUrl: receipt.fileViewUrl.trim(),
+              monthlyFolderId: receipt.monthlyFolderId.trim(),
+              monthlyFolderViewUrl: receipt.monthlyFolderViewUrl.trim(),
+            })),
           }
         : {}),
       currency: row.currency,
@@ -1119,17 +1133,26 @@ export default function MonthlyExpensesPage({
         contentBase64: await fileToBase64(file),
         expenseDescription: expenseRow.description,
         fileName: file.name,
+        month: formState.month,
         mimeType: receiptMimeType,
       });
       const nextRows = formState.rows.map((row) =>
         row.id === expenseRow.id
           ? {
               ...row,
-              receiptFileId: receiptUpload.fileId,
-              receiptFileName: receiptUpload.fileName,
-              receiptFileUrl: receiptUpload.fileViewUrl,
-              receiptFolderId: receiptUpload.folderId,
-              receiptFolderUrl: receiptUpload.folderViewUrl,
+              receipts: [
+                ...row.receipts,
+                {
+                  allReceiptsFolderId: receiptUpload.allReceiptsFolderId,
+                  allReceiptsFolderViewUrl:
+                    receiptUpload.allReceiptsFolderViewUrl,
+                  fileId: receiptUpload.fileId,
+                  fileName: receiptUpload.fileName,
+                  fileViewUrl: receiptUpload.fileViewUrl,
+                  monthlyFolderId: receiptUpload.monthlyFolderId,
+                  monthlyFolderViewUrl: receiptUpload.monthlyFolderViewUrl,
+                },
+              ],
             }
           : row,
       );
@@ -1154,6 +1177,60 @@ export default function MonthlyExpensesPage({
         isSubmitting: false,
       }));
       toast.error("No pudimos subir el comprobante.");
+    }
+  };
+
+  const handleDeleteExpenseReceipt = async ({
+    expenseId,
+    receiptFileId,
+  }: {
+    expenseId: string;
+    receiptFileId: string;
+  }) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para eliminar comprobantes.");
+      return;
+    }
+
+    const expenseRow = formState.rows.find((row) => row.id === expenseId);
+
+    if (!expenseRow) {
+      toast.warning("No pudimos encontrar el gasto del comprobante.");
+      return;
+    }
+
+    const receipt = expenseRow.receipts.find((item) => item.fileId === receiptFileId);
+
+    if (!receipt) {
+      toast.warning("No pudimos encontrar el comprobante seleccionado.");
+      return;
+    }
+
+    try {
+      if (receipt.fileStatus !== "missing") {
+        await deleteMonthlyExpenseReceiptViaApi({
+          fileId: receiptFileId,
+        });
+      }
+
+      const nextRows = formState.rows.map((row) =>
+        row.id === expenseId
+          ? {
+              ...row,
+              receipts: row.receipts.filter((item) => item.fileId !== receiptFileId),
+            }
+          : row,
+      );
+      await persistMonthlyExpensesRows(nextRows, {
+        loading: "Eliminando comprobante...",
+        success: "Comprobante eliminado correctamente.",
+      });
+    } catch (error) {
+      updateFormState((currentState) => ({
+        ...currentState,
+        error: getSafeMonthlyExpensesErrorMessage(error),
+      }));
+      toast.error("No pudimos eliminar el comprobante.");
     }
   };
 
@@ -1496,6 +1573,7 @@ export default function MonthlyExpensesPage({
                 onCopyFromMonth={handleCopyFromMonth}
                 onCopySourceMonthChange={handleCopySourceMonthChange}
                 onDeleteExpense={handleRemoveExpense}
+                onDeleteReceipt={handleDeleteExpenseReceipt}
                 onEditExpense={handleEditExpense}
                 onExpenseFieldChange={handleExpenseFieldChange}
                 onExpenseLenderSelect={handleExpenseLenderSelect}

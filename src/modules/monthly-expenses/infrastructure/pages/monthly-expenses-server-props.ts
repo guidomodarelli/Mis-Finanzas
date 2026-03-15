@@ -27,6 +27,9 @@ import {
 import {
   getMonthlyExpensesLoansReport,
 } from "@/modules/monthly-expenses/application/use-cases/get-monthly-expenses-loans-report";
+import type {
+  MonthlyExpenseReceiptsRepository,
+} from "@/modules/monthly-expenses/domain/repositories/monthly-expense-receipts-repository";
 import { getStorageBootstrap } from "@/modules/storage/application/queries/get-storage-bootstrap";
 import {
   appLogger,
@@ -113,8 +116,14 @@ export async function getMonthlyExpensesServerSidePropsForTab(
     const { DrizzleMonthlyExpensesRepository } = await import(
       "@/modules/monthly-expenses/infrastructure/turso/repositories/drizzle-monthly-expenses-repository"
     );
+    const { GoogleDriveMonthlyExpenseReceiptsRepository } = await import(
+      "@/modules/monthly-expenses/infrastructure/google-drive/repositories/google-drive-monthly-expense-receipts-repository"
+    );
     const { DrizzleLendersRepository } = await import(
       "@/modules/lenders/infrastructure/turso/repositories/drizzle-lenders-repository"
+    );
+    const { getGoogleDriveClientFromRequest } = await import(
+      "@/modules/auth/infrastructure/google-drive/google-drive-client"
     );
 
     const userSubject = await getAuthenticatedUserSubjectFromRequest(
@@ -125,6 +134,28 @@ export async function getMonthlyExpensesServerSidePropsForTab(
       database,
       userSubject,
     );
+    let receiptsRepository: MonthlyExpenseReceiptsRepository | undefined;
+
+    try {
+      const driveClient = await getGoogleDriveClientFromRequest(context.req);
+      receiptsRepository = new GoogleDriveMonthlyExpenseReceiptsRepository(
+        driveClient,
+      );
+    } catch (error) {
+      appLogger.warn(
+        "monthly-expenses SSR skipped Drive receipt status verification",
+        {
+          context: {
+            ...requestContext,
+            initialActiveTab,
+            month: selectedMonth,
+            operation: "monthly-expenses-ssr:skip-drive-verification",
+          },
+          error,
+        },
+      );
+    }
+
     const getExchangeRateSnapshot = createGetMonthlyExchangeRateSnapshot(database);
     const lendersRepository = new DrizzleLendersRepository(
       database,
@@ -138,6 +169,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
           query: {
             month: selectedMonth,
           },
+          receiptsRepository,
           repository: monthlyExpensesRepository,
         }),
         getLendersCatalog({
