@@ -617,6 +617,45 @@ describe("MonthlyExpensesPage", () => {
     ]);
   });
 
+  it("renders ARS and USD totals in the table footer", () => {
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          exchangeRateLoadError: null,
+          exchangeRateSnapshot: {
+            blueRate: 1290,
+            month: "2026-03",
+            officialRate: 1200,
+            solidarityRate: 120,
+          },
+          items: [
+            {
+              currency: "ARS",
+              description: "Agua",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 150,
+              total: 150,
+            },
+            {
+              currency: "USD",
+              description: "Internet",
+              id: "expense-2",
+              occurrencesPerMonth: 1,
+              subtotal: 2,
+              total: 2,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("$ 390")).toBeInTheDocument();
+    expect(screen.getByText("US$ 3,25")).toBeInTheDocument();
+  });
+
   it("falls back to the expenses tab for invalid query values", () => {
     expect(getRequestedMonthlyExpensesTab(undefined)).toBe("expenses");
     expect(getRequestedMonthlyExpensesTab("unknown")).toBe("expenses");

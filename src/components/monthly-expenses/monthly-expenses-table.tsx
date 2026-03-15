@@ -414,6 +414,37 @@ function getConvertedAmountForCurrency({
     : total / exchangeRateSnapshot.solidarityRate;
 }
 
+function getConvertedTotalAmount({
+  currency,
+  exchangeRateSnapshot,
+  rows,
+}: {
+  currency: MonthlyExpenseCurrency;
+  exchangeRateSnapshot: MonthlyExpensesTableProps["exchangeRateSnapshot"];
+  rows: MonthlyExpensesEditableRow[];
+}): number | null {
+  let total = 0;
+  let hasValues = false;
+
+  for (const row of rows) {
+    const convertedAmount = getConvertedAmountForCurrency({
+      currency,
+      exchangeRateSnapshot,
+      rowCurrency: row.currency,
+      total: Number(row.total),
+    });
+
+    if (convertedAmount == null) {
+      continue;
+    }
+
+    total += convertedAmount;
+    hasValues = true;
+  }
+
+  return hasValues ? total : null;
+}
+
 function getValidPaymentLink(value: string): string | null {
   const normalizedValue = value.trim();
 
@@ -669,6 +700,19 @@ export function MonthlyExpensesTable({
 
           return formatConvertedAmount("ARS", arsAmount);
         },
+        footer: ({ table }) => {
+          const arsTotal = getConvertedTotalAmount({
+            currency: "ARS",
+            exchangeRateSnapshot,
+            rows: table.getFilteredRowModel().rows.map((row) => row.original),
+          });
+
+          return (
+            <span className={styles.totalFooterValue}>
+              {formatConvertedAmount("ARS", arsTotal)}
+            </span>
+          );
+        },
         header: getSortableHeader("ARS"),
         meta: { label: "ARS" },
         sortingFn: (rowA, rowB) => {
@@ -701,6 +745,19 @@ export function MonthlyExpensesTable({
           });
 
           return formatConvertedAmount("USD", usdAmount);
+        },
+        footer: ({ table }) => {
+          const usdTotal = getConvertedTotalAmount({
+            currency: "USD",
+            exchangeRateSnapshot,
+            rows: table.getFilteredRowModel().rows.map((row) => row.original),
+          });
+
+          return (
+            <span className={styles.totalFooterValue}>
+              {formatConvertedAmount("USD", usdTotal)}
+            </span>
+          );
         },
         header: getSortableHeader("USD"),
         meta: { label: "USD" },

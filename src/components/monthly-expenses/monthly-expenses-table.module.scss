@@ -228,6 +228,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.totalFooterValue {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 .loanCell {
   display: grid;
   gap: 0.75rem;

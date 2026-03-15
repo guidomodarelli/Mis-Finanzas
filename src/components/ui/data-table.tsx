@@ -31,6 +31,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -115,6 +116,12 @@ export function DataTable<TData, TValue>({
   const shouldShowColumnVisibilityToggle =
     showColumnVisibilityToggle && hideableColumns.length > 0;
   const shouldShowToolbar = Boolean(filterColumnId) || shouldShowColumnVisibilityToggle;
+  const footerGroups = table.getFooterGroups();
+  const hasFooterContent = footerGroups.some((footerGroup) =>
+    footerGroup.headers.some(
+      (footer) => !footer.isPlaceholder && footer.column.columnDef.footer != null,
+    ),
+  );
 
   return (
     <div className="grid gap-4">
@@ -243,6 +250,25 @@ export function DataTable<TData, TValue>({
               </TableRow>
             )}
           </TableBody>
+
+          {hasFooterContent ? (
+            <TableFooter>
+              {footerGroups.map((footerGroup) => (
+                <TableRow className="hover:bg-transparent" key={footerGroup.id}>
+                  {footerGroup.headers.map((footer) => (
+                    <TableCell key={footer.id}>
+                      {footer.isPlaceholder
+                        ? null
+                        : flexRender(
+                            footer.column.columnDef.footer,
+                            footer.getContext(),
+                          )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableFooter>
+          ) : null}
         </Table>
       </div>
     </div>
