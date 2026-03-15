@@ -1,7 +1,6 @@
 import type {
   GetServerSidePropsContext,
 } from "next";
-import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
@@ -1039,15 +1038,25 @@ export default function MonthlyExpensesPage({
     }));
   };
 
-  const handleLendersSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleResetLendersForm = () => {
+    updateLendersState((currentState) => ({
+      ...currentState,
+      error: null,
+      name: "",
+      notes: "",
+      successMessage: null,
+      type: "family",
+    }));
+  };
+
+  const handleLendersSubmit = async () => {
 
     const lenderName = lendersState.name.trim();
     const newLenderId = createLenderId();
 
     if (!isOAuthConfigured || !isAuthenticated) {
       toast.warning("Conectate con Google para guardar prestadores.");
-      return;
+      return false;
     }
 
     if (!lenderName) {
@@ -1056,7 +1065,7 @@ export default function MonthlyExpensesPage({
         error: "Completá el nombre del prestador antes de guardarlo.",
       }));
       toast.warning("Completá el nombre del prestador antes de guardarlo.");
-      return;
+      return false;
     }
 
     if (
@@ -1070,7 +1079,7 @@ export default function MonthlyExpensesPage({
         error: "Ya existe un prestador con ese nombre.",
       }));
       toast.warning("Ya existe un prestador con ese nombre.");
-      return;
+      return false;
     }
 
     const nextLenders = [
@@ -1120,12 +1129,14 @@ export default function MonthlyExpensesPage({
         type: "family",
       }));
       await refreshLoansReport(nextLenders);
+      return true;
     } catch (error) {
       updateLendersState((currentState) => ({
         ...currentState,
         error: getSafeLendersErrorMessage(error),
         isSubmitting: false,
       }));
+      return false;
     }
   };
 
@@ -1280,6 +1291,7 @@ export default function MonthlyExpensesPage({
                 lenders={lendersState.lenders}
                 onDelete={handleDeleteLender}
                 onFieldChange={handleLenderFieldChange}
+                onResetForm={handleResetLendersForm}
                 onSubmit={handleLendersSubmit}
               />
       ) : null}

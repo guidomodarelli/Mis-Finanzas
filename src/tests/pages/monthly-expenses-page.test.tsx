@@ -2630,8 +2630,9 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("Nombre"), "Papa");
     await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+    await user.type(screen.getByLabelText("Nombre"), "Papa");
+    await user.click(screen.getByRole("button", { name: "Guardar prestador" }));
 
     await waitFor(() => {
       const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -2656,6 +2657,35 @@ describe("MonthlyExpensesPage", () => {
     });
 
     expect(screen.getAllByText("Papa")[0]).toBeInTheDocument();
+  });
+
+  it("discards unsaved lenders form changes from the modal", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialActiveTab="lenders"
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+    await user.type(screen.getByLabelText("Nombre"), "Prestador temporal");
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(
+      screen.getByText("Tenés cambios sin guardar en este prestador."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Descartar los cambios" }));
+
+    await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+
+    expect(screen.getByLabelText("Nombre")).toHaveValue("");
   });
 
   it("requires confirmation before deleting a lender from the catalog", async () => {
@@ -3017,8 +3047,9 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("Nombre"), "Papa");
     await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+    await user.type(screen.getByLabelText("Nombre"), "Papa");
+    await user.click(screen.getByRole("button", { name: "Guardar prestador" }));
 
     expect(
       await screen.findByText(
