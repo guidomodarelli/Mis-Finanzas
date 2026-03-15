@@ -22,6 +22,7 @@ export default function AuthErrorPage({
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   return (
     <main className={styles.page}>
+      <h1 className={styles.pageHeading}>Error de autenticación</h1>
       <Card className={styles.card}>
         <CardHeader>
           <CardTitle>No pudimos conectar tu cuenta</CardTitle>

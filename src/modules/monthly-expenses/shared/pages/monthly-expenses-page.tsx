@@ -138,6 +138,17 @@ function isMonthlyExpensesTabKey(
   return MONTHLY_EXPENSES_TAB_KEYS.includes(value as MonthlyExpensesTabKey);
 }
 
+function getPageHeadingByTab(tab: MonthlyExpensesTabKey): string {
+  switch (tab) {
+    case "expenses":
+      return "Gastos del mes";
+    case "lenders":
+      return "Prestadores";
+    case "debts":
+      return "Reporte de deudas";
+  }
+}
+
 function createExpenseRowId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -1258,6 +1269,8 @@ export default function MonthlyExpensesPage({
       initialSidebarOpen={initialSidebarOpen}
       isOAuthConfigured={isOAuthConfigured}
     >
+      <h1>{getPageHeadingByTab(activeTab)}</h1>
+
       {activeTab === "expenses" ? (
               <MonthlyExpensesTable
                 actionDisabled={actionDisabled}

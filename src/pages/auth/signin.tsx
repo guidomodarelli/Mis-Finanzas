@@ -43,6 +43,7 @@ export default function SignInPage({
 
   return (
     <main className={styles.page}>
+      <h1 className={styles.pageHeading}>Ingreso a tu cuenta</h1>
       <Card className={styles.card}>
         <CardHeader>
           <CardTitle>Conectar Google</CardTitle>
