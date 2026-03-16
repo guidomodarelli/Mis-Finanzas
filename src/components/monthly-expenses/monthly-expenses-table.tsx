@@ -21,6 +21,7 @@ import {
 } from "@/components/monthly-expenses/expense-sheet";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
+import { Highlighter } from "@/components/ui/highlighter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -1686,7 +1687,17 @@ export function MonthlyExpensesTable({
         <div className={styles.headerTopRow}>
           <div className={styles.header}>
             <p className={styles.pageDescription}>
-              Cargá, editá y guardá tus gastos mensuales.
+              <Highlighter
+                action="underline"
+                animationDuration={450}
+                color="#2fbf91"
+                isView
+                iterations={1}
+                strokeWidth={2}
+              >
+                Cargá, editá y guardá
+              </Highlighter>{" "}
+              tus gastos mensuales.
             </p>
           </div>
         </div>
