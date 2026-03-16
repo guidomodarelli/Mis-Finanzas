@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { useId, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 import styles from "./expense-receipt-upload-dialog.module.scss";
@@ -39,6 +41,10 @@ function getDroppedFile(event: DragEvent<HTMLDivElement>): File | null {
   return droppedFile ?? null;
 }
 
+function formatPaymentCount(count: number): string {
+  return `${count} pago${count === 1 ? "" : "s"}`;
+}
+
 export function ExpenseReceiptUploadDialog({
   coveredPaymentsMax,
   coveredPaymentsRemaining,
@@ -53,9 +59,14 @@ export function ExpenseReceiptUploadDialog({
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [coverageMode, setCoverageMode] = useState<"full" | "partial">("full");
   const [partialCoveredPayments, setPartialCoveredPayments] = useState("1");
+  const inputIdBase = useId();
+  const fullCoverageOptionId = `${inputIdBase}-full-coverage`;
+  const partialCoverageOptionId = `${inputIdBase}-partial-coverage`;
+  const partialCoveredPaymentsInputId = `${inputIdBase}-partial-covered-payments`;
 
   const normalizedCoveredPaymentsMax = Math.max(coveredPaymentsMax, 1);
   const normalizedCoveredPaymentsRemaining = Math.max(coveredPaymentsRemaining, 1);
+  const shouldShowCoverageOptions = normalizedCoveredPaymentsRemaining > 1;
   const parsedPartialCoveredPayments = Number(partialCoveredPayments);
   const partialCoveredPaymentsIsValid =
     Number.isInteger(parsedPartialCoveredPayments) &&
@@ -106,9 +117,9 @@ export function ExpenseReceiptUploadDialog({
       return;
     }
 
-    const coveredPayments = coverageMode === "full"
-      ? normalizedCoveredPaymentsRemaining
-      : parsedPartialCoveredPayments;
+    const coveredPayments = shouldShowCoverageOptions && coverageMode === "partial"
+      ? parsedPartialCoveredPayments
+      : normalizedCoveredPaymentsRemaining;
 
     if (!Number.isInteger(coveredPayments) || coveredPayments <= 0) {
       return;
@@ -122,7 +133,7 @@ export function ExpenseReceiptUploadDialog({
 
   return (
     <Dialog onOpenChange={handleDialogOpenChange} open={isOpen}>
-      <DialogContent>
+      <DialogContent className={styles.dialogContent}>
         <DialogHeader>
           <DialogTitle>Subir comprobante</DialogTitle>
           <DialogDescription>
@@ -154,61 +165,85 @@ export function ExpenseReceiptUploadDialog({
             <p className={styles.selectedFile}>Archivo: {selectedFile.name}</p>
           ) : null}
 
-          <div className={styles.coverageSection}>
-            <p className={styles.coverageTitle}>
-              Este comprobante corresponde a:
-            </p>
-
-            <div className={styles.coverageOptions}>
-              <label className={styles.coverageOption}>
-                <input
-                  checked={coverageMode === "full"}
-                  name="receipt-coverage-mode"
-                  onChange={() => setCoverageMode("full")}
-                  type="radio"
-                />
-                <span>Todo el mes</span>
-              </label>
-              <label className={styles.coverageOption}>
-                <input
-                  checked={coverageMode === "partial"}
-                  name="receipt-coverage-mode"
-                  onChange={() => setCoverageMode("partial")}
-                  type="radio"
-                />
-                <span>Cobertura parcial</span>
-              </label>
-            </div>
-
-            {coverageMode === "full" ? (
-              <p className={styles.coverageHint}>
-                Se van a cubrir {normalizedCoveredPaymentsRemaining} pagos.
+          {shouldShowCoverageOptions ? (
+            <div className={styles.coverageSection}>
+              <p className={styles.coverageTitle}>
+                Elegí cómo aplicar este comprobante:
               </p>
-            ) : (
-              <div className={styles.partialCoverageField}>
-                <label htmlFor="partial-covered-payments">Cantidad de pagos</label>
-                <Input
-                  id="partial-covered-payments"
-                  inputMode="numeric"
-                  max={normalizedCoveredPaymentsMax}
-                  min={1}
-                  onChange={(event) =>
-                    setPartialCoveredPayments(event.target.value.replace(/[^\d]/g, ""))}
-                  type="number"
-                  value={partialCoveredPayments}
-                />
-                <p className={styles.coverageHint}>
-                  Máximo permitido: {normalizedCoveredPaymentsMax} pagos.
+
+              <RadioGroup
+                className={styles.coverageOptions}
+                onValueChange={(value) => {
+                  if (value === "partial") {
+                    setCoverageMode("partial");
+                    return;
+                  }
+
+                  setCoverageMode("full");
+                }}
+                value={coverageMode}
+              >
+                <div
+                  className={cn(
+                    styles.coverageOption,
+                    coverageMode === "full" && styles.coverageOptionSelected,
+                  )}
+                >
+                  <div className={styles.coverageOptionHeader}>
+                    <RadioGroupItem id={fullCoverageOptionId} value="full" />
+                    <Label className={styles.coverageOptionLabel} htmlFor={fullCoverageOptionId}>
+                      Todo el periodo
+                    </Label>
+                  </div>
+                  <p className={styles.coverageOptionDescription}>
+                    El comprobante cubre {formatPaymentCount(normalizedCoveredPaymentsRemaining)} pendientes de un total de {formatPaymentCount(normalizedCoveredPaymentsMax)} en este mes.
+                  </p>
+                </div>
+
+                <div
+                  className={cn(
+                    styles.coverageOption,
+                    coverageMode === "partial" && styles.coverageOptionSelected,
+                  )}
+                >
+                  <div className={styles.coverageOptionHeader}>
+                    <RadioGroupItem id={partialCoverageOptionId} value="partial" />
+                    <Label className={styles.coverageOptionLabel} htmlFor={partialCoverageOptionId}>
+                      Cobertura parcial
+                    </Label>
+                  </div>
+                  <p className={styles.coverageOptionDescription}>
+                    El comprobante cubre solo la cantidad de pagos que indiques manualmente.
+                  </p>
+                </div>
+              </RadioGroup>
+
+              {coverageMode === "partial" ? (
+                <div className={styles.partialCoverageField}>
+                  <Label htmlFor={partialCoveredPaymentsInputId}>Cantidad de pagos a cubrir</Label>
+                  <Input
+                    id={partialCoveredPaymentsInputId}
+                    inputMode="numeric"
+                    max={normalizedCoveredPaymentsMax}
+                    min={1}
+                    onChange={(event) =>
+                      setPartialCoveredPayments(event.target.value.replace(/[^\d]/g, ""))}
+                    type="number"
+                    value={partialCoveredPayments}
+                  />
+                  <p className={styles.coverageHint}>
+                    Podés indicar entre 1 y {normalizedCoveredPaymentsMax} pagos.
+                  </p>
+                </div>
+              ) : null}
+
+              {coverageMode === "partial" && !partialCoveredPaymentsIsValid ? (
+                <p className={styles.errorText} role="alert">
+                  Ingresá una cantidad de pagos válida entre 1 y {normalizedCoveredPaymentsMax}.
                 </p>
-              </div>
-            )}
-
-            {coverageMode === "partial" && !partialCoveredPaymentsIsValid ? (
-              <p className={styles.errorText} role="alert">
-                Ingresá una cantidad de pagos válida entre 1 y {normalizedCoveredPaymentsMax}.
-              </p>
-            ) : null}
-          </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <p className={styles.supportedTypes}>
             Formatos permitidos: PDF, JPG, PNG, WEBP, HEIC, HEIF (hasta 5MB).
@@ -233,7 +268,9 @@ export function ExpenseReceiptUploadDialog({
               disabled={
                 !selectedFile ||
                 isSubmitting ||
-                (coverageMode === "partial" && !partialCoveredPaymentsIsValid)
+                (shouldShowCoverageOptions &&
+                  coverageMode === "partial" &&
+                  !partialCoveredPaymentsIsValid)
               }
               onClick={() => {
                 void handleUpload();
