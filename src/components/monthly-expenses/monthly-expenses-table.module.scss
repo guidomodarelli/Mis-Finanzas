@@ -310,6 +310,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.manualPaymentsCell {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.manualPaymentsHint {
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  line-height: 1.2;
+}
+
 .numericField {
   min-width: 8rem;
 }

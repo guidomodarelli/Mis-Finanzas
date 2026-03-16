@@ -1299,48 +1299,56 @@ export function MonthlyExpensesTable({
             maxManualCoveredPayments,
           );
           const expenseDescription = row.original.description.trim() || "gasto";
+          const manualPaymentsHintId =
+            `manual-covered-payments-hint-${row.original.id}`;
 
           return (
-            <Input
-              aria-label={`Pagos sin comprobante de ${expenseDescription}`}
-              className={styles.manualPaymentsInput}
-              defaultValue={String(normalizedManualCoveredPayments)}
-              disabled={actionDisabled}
-              inputMode="numeric"
-              key={`${row.original.id}-${row.original.manualCoveredPayments}-${maxManualCoveredPayments}`}
-              max={maxManualCoveredPayments}
-              min={0}
-              onBlur={(event) => {
-                const nextManualCoveredPayments = Number(
-                  event.target.value.replace(/[^\d]/g, ""),
-                );
-                const clampedManualCoveredPayments = Number.isInteger(
-                  nextManualCoveredPayments,
-                )
-                  ? Math.min(
-                      Math.max(nextManualCoveredPayments, 0),
-                      maxManualCoveredPayments,
-                    )
-                  : normalizedManualCoveredPayments;
+            <div className={styles.manualPaymentsCell}>
+              <Input
+                aria-describedby={manualPaymentsHintId}
+                aria-label={`Pagos sin comprobante de ${expenseDescription}`}
+                className={styles.manualPaymentsInput}
+                defaultValue={String(normalizedManualCoveredPayments)}
+                disabled={actionDisabled}
+                inputMode="numeric"
+                key={`${row.original.id}-${row.original.manualCoveredPayments}-${maxManualCoveredPayments}`}
+                max={maxManualCoveredPayments}
+                min={0}
+                onBlur={(event) => {
+                  const nextManualCoveredPayments = Number(
+                    event.target.value.replace(/[^\d]/g, ""),
+                  );
+                  const clampedManualCoveredPayments = Number.isInteger(
+                    nextManualCoveredPayments,
+                  )
+                    ? Math.min(
+                        Math.max(nextManualCoveredPayments, 0),
+                        maxManualCoveredPayments,
+                      )
+                    : normalizedManualCoveredPayments;
 
-                event.target.value = String(clampedManualCoveredPayments);
+                  event.target.value = String(clampedManualCoveredPayments);
 
-                if (clampedManualCoveredPayments === normalizedManualCoveredPayments) {
-                  return;
-                }
+                  if (clampedManualCoveredPayments === normalizedManualCoveredPayments) {
+                    return;
+                  }
 
-                onUpdateManualCoveredPayments({
-                  expenseId: row.original.id,
-                  manualCoveredPayments: clampedManualCoveredPayments,
-                });
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.currentTarget.blur();
-                }
-              }}
-              type="number"
-            />
+                  onUpdateManualCoveredPayments({
+                    expenseId: row.original.id,
+                    manualCoveredPayments: clampedManualCoveredPayments,
+                  });
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                  }
+                }}
+                type="number"
+              />
+              <span className={styles.manualPaymentsHint} id={manualPaymentsHintId}>
+                0 a {maxManualCoveredPayments}
+              </span>
+            </div>
           );
         },
         header: getSortableHeader("Pagos sin comprobante"),
