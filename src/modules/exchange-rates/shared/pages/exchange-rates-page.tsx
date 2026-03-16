@@ -163,6 +163,7 @@ export default function ExchangeRatesPage({
           <TypingAnimation
             aria-label="Cotizaciones del dólar"
             as="h1"
+            className={styles.pageHeading}
             showCursor={false}
             startOnView={false}
           >
