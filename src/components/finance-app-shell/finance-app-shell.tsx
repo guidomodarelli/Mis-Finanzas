@@ -10,7 +10,8 @@ import {
 
 import { GoogleAccountAvatar } from "@/components/auth/google-account-avatar";
 import { PwaUpdateControl } from "@/components/pwa/pwa-update-control";
-import { ThemeModeToggle } from "@/components/theme/theme-mode-toggle";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -188,7 +189,13 @@ export function FinanceAppShell({
                 className={styles.mobileSidebarTrigger}
               />
               <PwaUpdateControl />
-              <ThemeModeToggle />
+              <AnimatedThemeToggler
+                aria-label="Alternar tema"
+                className={buttonVariants({
+                  size: "icon-sm",
+                  variant: "outline",
+                })}
+              />
               <GoogleAccountAvatar
                 onConnect={handleGoogleAccountConnect}
                 onDisconnect={handleGoogleAccountDisconnect}
