@@ -73,6 +73,7 @@ const MONTHLY_EXPENSES_TABLE_PREFERENCES_STORAGE_KEY =
 const SORTABLE_COLUMN_IDS = new Set([
   "description",
   "paymentsProgress",
+  "manualCoveredPaymentsWithoutReceipt",
   "currency",
   "subtotal",
   "occurrencesPerMonth",
@@ -90,6 +91,7 @@ const SORTABLE_COLUMN_IDS = new Set([
 ]);
 const PERSISTABLE_COLUMN_VISIBILITY_IDS = new Set([
   "paymentsProgress",
+  "manualCoveredPaymentsWithoutReceipt",
   "currency",
   "subtotal",
   "occurrencesPerMonth",
@@ -509,6 +511,10 @@ interface MonthlyExpensesTableProps {
     expenseId: string;
     receiptFileId: string;
   }) => void;
+  onUpdateManualCoveredPayments: (args: {
+    expenseId: string;
+    manualCoveredPayments: number;
+  }) => void;
   onUploadReceipt: (expenseId: string) => void;
   onRequestCloseExpenseSheet: () => void;
   onSaveExpense: () => void;
@@ -922,6 +928,7 @@ export function MonthlyExpensesTable({
   onExpenseLoanToggle,
   onDeleteReceipt,
   onEditReceiptCoverage,
+  onUpdateManualCoveredPayments,
   onMonthChange,
   onUploadReceipt,
   onRequestCloseExpenseSheet,
@@ -1266,6 +1273,87 @@ export function MonthlyExpensesTable({
           }
 
           return leftProgress.coveredPayments - rightProgress.coveredPayments;
+        },
+      },
+      {
+        id: "manualCoveredPaymentsWithoutReceipt",
+        accessorFn: (row) => {
+          const requiredPayments = parsePositiveInteger(row.occurrencesPerMonth);
+          const coveredPaymentsByReceipts = getCoveredPaymentsByReceipts(
+            row.receipts,
+          );
+
+          return Math.max(requiredPayments - coveredPaymentsByReceipts, 0);
+        },
+        cell: ({ row }) => {
+          const requiredPayments = parsePositiveInteger(row.original.occurrencesPerMonth);
+          const coveredPaymentsByReceipts = getCoveredPaymentsByReceipts(
+            row.original.receipts,
+          );
+          const maxManualCoveredPayments = Math.max(
+            requiredPayments - coveredPaymentsByReceipts,
+            0,
+          );
+          const normalizedManualCoveredPayments = Math.min(
+            parseNonNegativeInteger(row.original.manualCoveredPayments),
+            maxManualCoveredPayments,
+          );
+          const expenseDescription = row.original.description.trim() || "gasto";
+
+          return (
+            <Input
+              aria-label={`Pagos sin comprobante de ${expenseDescription}`}
+              className={styles.manualPaymentsInput}
+              defaultValue={String(normalizedManualCoveredPayments)}
+              disabled={actionDisabled}
+              inputMode="numeric"
+              key={`${row.original.id}-${row.original.manualCoveredPayments}-${maxManualCoveredPayments}`}
+              max={maxManualCoveredPayments}
+              min={0}
+              onBlur={(event) => {
+                const nextManualCoveredPayments = Number(
+                  event.target.value.replace(/[^\d]/g, ""),
+                );
+                const clampedManualCoveredPayments = Number.isInteger(
+                  nextManualCoveredPayments,
+                )
+                  ? Math.min(
+                      Math.max(nextManualCoveredPayments, 0),
+                      maxManualCoveredPayments,
+                    )
+                  : normalizedManualCoveredPayments;
+
+                event.target.value = String(clampedManualCoveredPayments);
+
+                if (clampedManualCoveredPayments === normalizedManualCoveredPayments) {
+                  return;
+                }
+
+                onUpdateManualCoveredPayments({
+                  expenseId: row.original.id,
+                  manualCoveredPayments: clampedManualCoveredPayments,
+                });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+              type="number"
+            />
+          );
+        },
+        header: getSortableHeader("Pagos sin comprobante"),
+        meta: { label: "Pagos sin comprobante" },
+        sortingFn: (rowA, rowB) => {
+          const leftValue = parseNonNegativeInteger(
+            rowA.original.manualCoveredPayments,
+          );
+          const rightValue = parseNonNegativeInteger(
+            rowB.original.manualCoveredPayments,
+          );
+
+          return leftValue - rightValue;
         },
       },
       {
@@ -1793,6 +1881,7 @@ export function MonthlyExpensesTable({
       onDeleteReceipt,
       onEditReceiptCoverage,
       onEditExpense,
+      onUpdateManualCoveredPayments,
       onUploadReceipt,
     ],
   );

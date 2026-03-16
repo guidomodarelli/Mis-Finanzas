@@ -6,6 +6,7 @@ import {
   toMonthlyExpensesDocumentInput,
 } from "../../domain/value-objects/monthly-expenses-document";
 import type { SaveMonthlyExpensesCommand } from "../commands/save-monthly-expenses-command";
+import { MonthlyExpenseCoverageValidationError } from "../errors/monthly-expense-coverage-validation-error";
 import {
   toStoredMonthlyExpensesDocumentResult,
   type StoredMonthlyExpensesDocumentResult,
@@ -19,6 +20,32 @@ interface SaveMonthlyExpensesDocumentDependencies {
   ) => Promise<MonthlyExchangeRateSnapshot>;
   receiptsRepository?: MonthlyExpenseReceiptsRepository;
   repository: MonthlyExpensesRepository;
+}
+
+function validateCoverageConsistency(document: MonthlyExpensesDocument): void {
+  for (const item of document.items) {
+    const requiredPayments = item.occurrencesPerMonth;
+    const manualCoveredPayments = item.manualCoveredPayments ?? 0;
+    const coveredPaymentsByReceipts = item.receipts.reduce(
+      (coveredPayments, receipt) =>
+        coveredPayments + (receipt.coveredPayments ?? 1),
+      0,
+    );
+
+    if (manualCoveredPayments > requiredPayments) {
+      throw new MonthlyExpenseCoverageValidationError(
+        "Saving monthly expenses requires manual covered payments to be between 0 and total required payments for each expense.",
+      );
+    }
+
+    const remainingPaymentsForReceipts = requiredPayments - manualCoveredPayments;
+
+    if (coveredPaymentsByReceipts > remainingPaymentsForReceipts) {
+      throw new MonthlyExpenseCoverageValidationError(
+        "Saving monthly expenses requires receipt coverage to be less than or equal to the remaining payments for each expense.",
+      );
+    }
+  }
 }
 
 async function syncReceiptFolderRenames({
@@ -91,6 +118,8 @@ export async function saveMonthlyExpensesDocument({
     },
     "Saving monthly expenses",
   );
+
+  validateCoverageConsistency(validatedDocument);
 
   if (currentDocument && receiptsRepository) {
     await syncReceiptFolderRenames({

@@ -3805,7 +3805,7 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getAllByText("Abrir página de pago").length).toBeGreaterThan(0);
   });
 
-  it("renders Pagos column immediately before Comprobantes", () => {
+  it("renders Pagos and Pagos sin comprobante columns immediately before Comprobantes", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -3829,10 +3829,13 @@ describe("MonthlyExpensesPage", () => {
       .getAllByRole("columnheader")
       .map((header) => header.textContent?.trim() ?? "");
     const paidHeaderIndex = headers.indexOf("Pagos");
+    const manualPaidHeaderIndex = headers.indexOf("Pagos sin comprobante");
     const receiptHeaderIndex = headers.indexOf("Comprobantes");
 
+    expect(manualPaidHeaderIndex).toBeGreaterThanOrEqual(0);
     expect(receiptHeaderIndex).toBeGreaterThanOrEqual(0);
-    expect(paidHeaderIndex).toBe(receiptHeaderIndex - 1);
+    expect(paidHeaderIndex).toBe(manualPaidHeaderIndex - 1);
+    expect(manualPaidHeaderIndex).toBe(receiptHeaderIndex - 1);
   });
 
   it("shows pending payments as a covered/total yellow badge when no manual or receipt coverage exists", () => {
@@ -3949,6 +3952,58 @@ describe("MonthlyExpensesPage", () => {
       "dark:bg-green-950",
       "dark:text-green-300",
     );
+  });
+
+  it("updates manual covered payments from the table input column", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              manualCoveredPayments: 0,
+              occurrencesPerMonth: 8,
+              subtotal: 100,
+              total: 800,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    const manualPaymentsInput = screen.getByRole("spinbutton", {
+      name: "Pagos sin comprobante de Internet",
+    });
+
+    await user.clear(manualPaymentsInput);
+    await user.type(manualPaymentsInput, "5");
+    fireEvent.blur(manualPaymentsInput);
+
+    await waitFor(() => {
+      const payload = getMonthlyExpensesSavePayload(fetchMock);
+
+      expect(payload.items[0]?.manualCoveredPayments).toBe(5);
+    });
   });
 
   it("recalculates progress when deleting the last receipt without legacy confirmation", async () => {
@@ -4157,7 +4212,170 @@ describe("MonthlyExpensesPage", () => {
     });
   });
 
-  it("renders Pagos, Comprobantes, Carpeta del mes actual, and Carpeta de comprobantes columns after Link", () => {
+  it("blocks increasing receipt coverage when it would exceed pending payments", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              manualCoveredPayments: 2,
+              occurrencesPerMonth: 8,
+              receipts: [
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  coveredPayments: 3,
+                  fileId: "receipt-file-id-1",
+                  fileName: "comprobante-1.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id-1/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  coveredPayments: 3,
+                  fileId: "receipt-file-id-2",
+                  fileName: "comprobante-2.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id-2/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+              ],
+              subtotal: 100,
+              total: 800,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /2 comprobantes/i,
+      }),
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Editar cobertura de comprobante comprobante-1.pdf",
+      }),
+    );
+
+    const coveredPaymentsInput = screen.getByRole("spinbutton", {
+      name: "Cantidad de pagos",
+    });
+
+    await user.clear(coveredPaymentsInput);
+    await user.type(coveredPaymentsInput, "4");
+
+    expect(
+      screen.getByText("Ingresa un numero entero entre 1 y 3."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Guardar cambios" }),
+    ).toBeDisabled();
+  });
+
+  it("blocks attaching a receipt when there are no pending payments", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              manualCoveredPayments: 2,
+              occurrencesPerMonth: 8,
+              receipts: [
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  coveredPayments: 3,
+                  fileId: "receipt-file-id-1",
+                  fileName: "comprobante-1.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id-1/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  coveredPayments: 3,
+                  fileId: "receipt-file-id-2",
+                  fileName: "comprobante-2.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id-2/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+              ],
+              subtotal: 100,
+              total: 800,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Adjuntar comprobante" }));
+
+    expect(mockedToast.warning).toHaveBeenCalledWith(
+      "No quedan pagos pendientes para cubrir con comprobantes.",
+    );
+    expect(screen.queryByText("Subir comprobante")).not.toBeInTheDocument();
+  });
+
+  it("renders Pagos, Pagos sin comprobante, Comprobantes, Carpeta del mes actual, and Carpeta de comprobantes columns after Link", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -4190,6 +4408,7 @@ describe("MonthlyExpensesPage", () => {
       .map((header) => header.textContent?.trim() ?? "");
     const linkHeaderIndex = headers.indexOf("Link");
     const paidHeaderIndex = headers.indexOf("Pagos");
+    const manualPaidHeaderIndex = headers.indexOf("Pagos sin comprobante");
     const receiptHeaderIndex = headers.indexOf("Comprobantes");
     const monthlyReceiptFolderHeaderIndex = headers.indexOf(
       "Carpeta del mes actual",
@@ -4198,7 +4417,8 @@ describe("MonthlyExpensesPage", () => {
 
     expect(linkHeaderIndex).toBeGreaterThanOrEqual(0);
     expect(paidHeaderIndex).toBe(linkHeaderIndex + 1);
-    expect(receiptHeaderIndex).toBe(paidHeaderIndex + 1);
+    expect(manualPaidHeaderIndex).toBe(paidHeaderIndex + 1);
+    expect(receiptHeaderIndex).toBe(manualPaidHeaderIndex + 1);
     expect(monthlyReceiptFolderHeaderIndex).toBe(receiptHeaderIndex + 1);
     expect(allReceiptsFolderHeaderIndex).toBe(monthlyReceiptFolderHeaderIndex + 1);
     expect(

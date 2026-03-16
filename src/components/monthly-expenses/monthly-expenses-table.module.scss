@@ -305,6 +305,11 @@
   color: var(--foreground);
 }
 
+.manualPaymentsInput {
+  min-width: 6rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .numericField {
   min-width: 8rem;
 }

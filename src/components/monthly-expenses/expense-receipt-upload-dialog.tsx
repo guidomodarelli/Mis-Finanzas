@@ -71,7 +71,7 @@ export function ExpenseReceiptUploadDialog({
   const partialCoveredPaymentsIsValid =
     Number.isInteger(parsedPartialCoveredPayments) &&
     parsedPartialCoveredPayments > 0 &&
-    parsedPartialCoveredPayments <= normalizedCoveredPaymentsMax;
+    parsedPartialCoveredPayments <= normalizedCoveredPaymentsRemaining;
 
   const dropzoneLabel = useMemo(
     () =>
@@ -224,7 +224,7 @@ export function ExpenseReceiptUploadDialog({
                   <Input
                     id={partialCoveredPaymentsInputId}
                     inputMode="numeric"
-                    max={normalizedCoveredPaymentsMax}
+                    max={normalizedCoveredPaymentsRemaining}
                     min={1}
                     onChange={(event) =>
                       setPartialCoveredPayments(event.target.value.replace(/[^\d]/g, ""))}
@@ -232,14 +232,14 @@ export function ExpenseReceiptUploadDialog({
                     value={partialCoveredPayments}
                   />
                   <p className={styles.coverageHint}>
-                    Podés indicar entre 1 y {normalizedCoveredPaymentsMax} pagos.
+                    Podés indicar entre 1 y {normalizedCoveredPaymentsRemaining} pagos.
                   </p>
                 </div>
               ) : null}
 
               {coverageMode === "partial" && !partialCoveredPaymentsIsValid ? (
                 <p className={styles.errorText} role="alert">
-                  Ingresá una cantidad de pagos válida entre 1 y {normalizedCoveredPaymentsMax}.
+                  Ingresá una cantidad de pagos válida entre 1 y {normalizedCoveredPaymentsRemaining}.
                 </p>
               ) : null}
             </div>

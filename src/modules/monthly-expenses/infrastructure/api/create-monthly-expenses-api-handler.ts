@@ -6,6 +6,9 @@ import {
   GoogleOAuthConfigurationError,
 } from "@/modules/auth/infrastructure/oauth/google-oauth-token";
 import {
+  MonthlyExpenseCoverageValidationError,
+} from "@/modules/monthly-expenses/application/errors/monthly-expense-coverage-validation-error";
+import {
   MonthlyExpenseReceiptFolderConflictError,
 } from "@/modules/monthly-expenses/application/errors/monthly-expense-receipt-folder-conflict-error";
 import type { TursoDatabase } from "@/modules/shared/infrastructure/database/drizzle/turso-database";
@@ -303,6 +306,12 @@ export function createMonthlyExpensesApiHandler<TLoadResult, TSaveResult>({
 
       if (error instanceof MonthlyExpenseReceiptFolderConflictError) {
         return response.status(409).json({
+          error: error.message,
+        });
+      }
+
+      if (error instanceof MonthlyExpenseCoverageValidationError) {
+        return response.status(400).json({
           error: error.message,
         });
       }

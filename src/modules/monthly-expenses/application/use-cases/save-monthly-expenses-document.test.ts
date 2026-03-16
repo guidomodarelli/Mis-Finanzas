@@ -53,6 +53,7 @@ describe("saveMonthlyExpensesDocument", () => {
           currency: "ARS",
           description: "Expensas",
           id: "expense-1",
+          manualCoveredPayments: 0,
           occurrencesPerMonth: 1,
           paymentLink: null,
           receipts: [],
@@ -249,5 +250,151 @@ describe("saveMonthlyExpensesDocument", () => {
     });
 
     expect(receiptsRepository.renameExpenseFolder).not.toHaveBeenCalled();
+  });
+
+  it("rejects save when receipt-covered payments exceed remaining payments after manual coverage", async () => {
+    const repository: MonthlyExpensesRepository = {
+      getByMonth: jest.fn(),
+      listAll: jest.fn(),
+      save: jest.fn(),
+    };
+
+    await expect(
+      saveMonthlyExpensesDocument({
+        command: {
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              manualCoveredPayments: 2,
+              occurrencesPerMonth: 8,
+              receipts: [
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  coveredPayments: 4,
+                  fileId: "receipt-file-id-1",
+                  fileName: "comprobante-1.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id-1/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  coveredPayments: 3,
+                  fileId: "receipt-file-id-2",
+                  fileName: "comprobante-2.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id-2/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+              ],
+              subtotal: 100,
+            },
+          ],
+          month: "2026-03",
+        },
+        getExchangeRateSnapshot: jest.fn().mockResolvedValue({
+          blueRate: 1290,
+          iibbRateDecimalUsed: 0.02,
+          month: "2026-03",
+          officialRate: 1200,
+          solidarityRate: 1476,
+          source: "ambito-historico-general",
+          sourceDateIso: "2026-03-31",
+          updatedAtIso: "2026-03-14T12:00:00.000Z",
+        }),
+        repository,
+      }),
+    ).rejects.toThrow(
+      "Saving monthly expenses requires receipt coverage to be less than or equal to the remaining payments for each expense.",
+    );
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it("allows save when receipt-covered payments match remaining payments after manual coverage", async () => {
+    const repository: MonthlyExpensesRepository = {
+      getByMonth: jest.fn(),
+      listAll: jest.fn(),
+      save: jest.fn().mockResolvedValue({
+        id: "monthly-expenses-file-id",
+        month: "2026-03",
+        name: "gastos-mensuales-2026-marzo.json",
+        viewUrl: null,
+      }),
+    };
+
+    await expect(
+      saveMonthlyExpensesDocument({
+        command: {
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              manualCoveredPayments: 2,
+              occurrencesPerMonth: 8,
+              receipts: [
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  coveredPayments: 3,
+                  fileId: "receipt-file-id-1",
+                  fileName: "comprobante-1.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id-1/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  coveredPayments: 3,
+                  fileId: "receipt-file-id-2",
+                  fileName: "comprobante-2.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id-2/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+              ],
+              subtotal: 100,
+            },
+          ],
+          month: "2026-03",
+        },
+        getExchangeRateSnapshot: jest.fn().mockResolvedValue({
+          blueRate: 1290,
+          iibbRateDecimalUsed: 0.02,
+          month: "2026-03",
+          officialRate: 1200,
+          solidarityRate: 1476,
+          source: "ambito-historico-general",
+          sourceDateIso: "2026-03-31",
+          updatedAtIso: "2026-03-14T12:00:00.000Z",
+        }),
+        repository,
+      }),
+    ).resolves.toEqual({
+      id: "monthly-expenses-file-id",
+      month: "2026-03",
+      name: "gastos-mensuales-2026-marzo.json",
+      viewUrl: null,
+    });
+
+    expect(repository.save).toHaveBeenCalledTimes(1);
   });
 });

@@ -122,6 +122,31 @@ describe("ExpenseReceiptUploadDialog", () => {
     });
   });
 
+  it("validates partial coverage against remaining payments", async () => {
+    const user = userEvent.setup();
+
+    renderExpenseReceiptUploadDialog({
+      coveredPaymentsMax: 8,
+      coveredPaymentsRemaining: 3,
+    });
+
+    await user.click(screen.getByRole("radio", { name: "Cobertura parcial" }));
+
+    const partialInput = screen.getByRole("spinbutton", {
+      name: "Cantidad de pagos a cubrir",
+    });
+
+    await user.clear(partialInput);
+    await user.type(partialInput, "4");
+
+    expect(
+      screen.getByText("Ingresá una cantidad de pagos válida entre 1 y 3."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Subir comprobante" }),
+    ).toBeDisabled();
+  });
+
   it("uploads one payment by default when coverage choices are hidden", async () => {
     const user = userEvent.setup();
     const { onUpload } = renderExpenseReceiptUploadDialog({

@@ -394,6 +394,81 @@ function getCoveredPaymentsByReceipts(
   );
 }
 
+function getRequiredPayments(
+  row: Pick<MonthlyExpensesEditableRow, "occurrencesPerMonth">,
+): number {
+  const requiredPayments = Number(row.occurrencesPerMonth);
+
+  if (!Number.isInteger(requiredPayments) || requiredPayments <= 0) {
+    return 0;
+  }
+
+  return requiredPayments;
+}
+
+function getNormalizedManualCoveredPayments(
+  row: Pick<MonthlyExpensesEditableRow, "manualCoveredPayments">,
+): number {
+  const manualCoveredPayments = Number(row.manualCoveredPayments);
+
+  if (!Number.isInteger(manualCoveredPayments) || manualCoveredPayments < 0) {
+    return 0;
+  }
+
+  return manualCoveredPayments;
+}
+
+function getRemainingPaymentsForReceipts(
+  row: Pick<
+    MonthlyExpensesEditableRow,
+    "manualCoveredPayments" | "occurrencesPerMonth" | "receipts"
+  >,
+): number {
+  const requiredPayments = getRequiredPayments(row);
+  const manualCoveredPayments = getNormalizedManualCoveredPayments(row);
+  const coveredPaymentsByReceipts = getCoveredPaymentsByReceipts(row);
+
+  return Math.max(
+    requiredPayments - manualCoveredPayments - coveredPaymentsByReceipts,
+    0,
+  );
+}
+
+function getMaxReceiptCoverageForEdition({
+  receiptFileId,
+  row,
+}: {
+  receiptFileId: string;
+  row: Pick<
+    MonthlyExpensesEditableRow,
+    "manualCoveredPayments" | "occurrencesPerMonth" | "receipts"
+  >;
+}): number {
+  const requiredPayments = getRequiredPayments(row);
+  const manualCoveredPayments = getNormalizedManualCoveredPayments(row);
+  const coveredPaymentsByOtherReceipts = row.receipts.reduce(
+    (coveredPayments, receipt) =>
+      receipt.fileId === receiptFileId
+        ? coveredPayments
+        : coveredPayments + receipt.coveredPayments,
+    0,
+  );
+
+  return Math.max(
+    requiredPayments - manualCoveredPayments - coveredPaymentsByOtherReceipts,
+    1,
+  );
+}
+
+function getMaxManualCoveredPayments(
+  row: Pick<MonthlyExpensesEditableRow, "occurrencesPerMonth" | "receipts">,
+): number {
+  const requiredPayments = getRequiredPayments(row);
+  const coveredPaymentsByReceipts = getCoveredPaymentsByReceipts(row);
+
+  return Math.max(requiredPayments - coveredPaymentsByReceipts, 0);
+}
+
 function createMonthlyExpensesFormState(
   document: MonthlyExpensesDocumentResult,
 ): MonthlyExpensesFormState {
@@ -558,6 +633,16 @@ function getExpenseValidationMessage(
     !Number.isInteger(manualCoveredPayments) ||
     manualCoveredPayments < 0
   ) {
+    return GENERIC_EXPENSE_VALIDATION_MESSAGE;
+  }
+
+  if (manualCoveredPayments > occurrencesPerMonth) {
+    return GENERIC_EXPENSE_VALIDATION_MESSAGE;
+  }
+
+  const coveredPaymentsByReceipts = getCoveredPaymentsByReceipts(row);
+
+  if (manualCoveredPayments + coveredPaymentsByReceipts > occurrencesPerMonth) {
     return GENERIC_EXPENSE_VALIDATION_MESSAGE;
   }
 
@@ -1184,6 +1269,13 @@ export default function MonthlyExpensesPage({
       return;
     }
 
+    const remainingPaymentsForReceipts = getRemainingPaymentsForReceipts(row);
+
+    if (remainingPaymentsForReceipts <= 0) {
+      toast.warning("No quedan pagos pendientes para cubrir con comprobantes.");
+      return;
+    }
+
     updateExpenseReceiptUploadState(() => ({
       coveredPaymentsByReceipts: getCoveredPaymentsByReceipts(row),
       error: null,
@@ -1228,6 +1320,28 @@ export default function MonthlyExpensesPage({
       updateExpenseReceiptUploadState((currentState) => ({
         ...currentState,
         error: "No pudimos encontrar el gasto seleccionado.",
+      }));
+      return;
+    }
+
+    const remainingPaymentsForReceipts = getRemainingPaymentsForReceipts(
+      expenseRow,
+    );
+
+    if (remainingPaymentsForReceipts <= 0) {
+      updateExpenseReceiptUploadState((currentState) => ({
+        ...currentState,
+        error: "No quedan pagos pendientes para cubrir con comprobantes.",
+        isSubmitting: false,
+      }));
+      return;
+    }
+
+    if (coveredPayments > remainingPaymentsForReceipts) {
+      updateExpenseReceiptUploadState((currentState) => ({
+        ...currentState,
+        error: `Ingresá una cantidad de pagos válida entre 1 y ${remainingPaymentsForReceipts}.`,
+        isSubmitting: false,
       }));
       return;
     }
@@ -1404,7 +1518,10 @@ export default function MonthlyExpensesPage({
       expenseId,
       isOpen: true,
       isSubmitting: false,
-      maxCoveredPayments: Math.max(Number(expenseRow.occurrencesPerMonth) || 1, 1),
+      maxCoveredPayments: getMaxReceiptCoverageForEdition({
+        receiptFileId,
+        row: expenseRow,
+      }),
       receiptFileId,
       receiptFileName: receipt.fileName,
     }));
@@ -1431,14 +1548,44 @@ export default function MonthlyExpensesPage({
       return;
     }
 
+    const expenseRow = formState.rows.find((row) => row.id === activeExpenseId);
+
+    if (!expenseRow) {
+      updateExpenseReceiptCoverageEditState((currentState) => ({
+        ...currentState,
+        error: "No pudimos encontrar el gasto seleccionado.",
+        isSubmitting: false,
+      }));
+      return;
+    }
+
+    const activeReceipt = expenseRow.receipts.find(
+      (receipt) => receipt.fileId === activeReceiptFileId,
+    );
+
+    if (!activeReceipt) {
+      updateExpenseReceiptCoverageEditState((currentState) => ({
+        ...currentState,
+        error: "No pudimos encontrar el comprobante seleccionado.",
+        isSubmitting: false,
+      }));
+      return;
+    }
+
+    const maxCoveredPayments = getMaxReceiptCoverageForEdition({
+      receiptFileId: activeReceiptFileId,
+      row: expenseRow,
+    });
+
     if (
       !Number.isInteger(coveredPayments) ||
       coveredPayments <= 0 ||
-      coveredPayments > expenseReceiptCoverageEditState.maxCoveredPayments
+      coveredPayments > maxCoveredPayments
     ) {
       updateExpenseReceiptCoverageEditState((currentState) => ({
         ...currentState,
         error: "La cantidad de pagos no es valida para este comprobante.",
+        maxCoveredPayments,
       }));
       return;
     }
@@ -1487,6 +1634,59 @@ export default function MonthlyExpensesPage({
       }));
       toast.error("No pudimos actualizar la cobertura del comprobante.");
     }
+  };
+
+  const handleUpdateManualCoveredPayments = async ({
+    expenseId,
+    manualCoveredPayments,
+  }: {
+    expenseId: string;
+    manualCoveredPayments: number;
+  }) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para actualizar pagos sin comprobante.");
+      return;
+    }
+
+    const expenseRow = formState.rows.find((row) => row.id === expenseId);
+
+    if (!expenseRow) {
+      toast.warning("No pudimos encontrar el gasto seleccionado.");
+      return;
+    }
+
+    const maxManualCoveredPayments = getMaxManualCoveredPayments(expenseRow);
+
+    if (
+      !Number.isInteger(manualCoveredPayments) ||
+      manualCoveredPayments < 0 ||
+      manualCoveredPayments > maxManualCoveredPayments
+    ) {
+      toast.warning(
+        `Ingresá una cantidad válida entre 0 y ${maxManualCoveredPayments}.`,
+      );
+      return;
+    }
+
+    const currentManualCoveredPayments = Number(expenseRow.manualCoveredPayments) || 0;
+
+    if (manualCoveredPayments === currentManualCoveredPayments) {
+      return;
+    }
+
+    const nextRows = formState.rows.map((row) =>
+      row.id === expenseId
+        ? {
+            ...row,
+            manualCoveredPayments: String(manualCoveredPayments),
+          }
+        : row,
+    );
+
+    await persistMonthlyExpensesRows(nextRows, {
+      loading: "Actualizando pagos sin comprobante...",
+      success: "Pagos sin comprobante actualizados.",
+    });
   };
 
   const handleDeleteMonthlyFolderReference = async (expenseId: string) => {
@@ -1917,6 +2117,7 @@ export default function MonthlyExpensesPage({
                 onRequestCloseExpenseSheet={handleRequestCloseExpenseSheet}
                 onSaveExpense={handleSaveExpense}
                 onSaveUnsavedChanges={handleSaveUnsavedChanges}
+                onUpdateManualCoveredPayments={handleUpdateManualCoveredPayments}
                 onUploadReceipt={handleOpenReceiptUpload}
                 onUnsavedChangesClose={handleUnsavedChangesClose}
                 onUnsavedChangesDiscard={handleUnsavedChangesDiscard}
@@ -1962,7 +2163,7 @@ export default function MonthlyExpensesPage({
           expenseReceiptUploadState.occurrencesPerMonth -
             expenseReceiptUploadState.manualCoveredPayments -
             expenseReceiptUploadState.coveredPaymentsByReceipts,
-          1,
+          0,
         )}
         errorMessage={expenseReceiptUploadState.error}
         expenseDescription={expenseReceiptUploadState.expenseDescription}
