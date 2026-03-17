@@ -1240,6 +1240,12 @@ function getPaymentProgress(row: MonthlyExpensesEditableRow): {
   };
 }
 
+function isPaymentCompleted(row: MonthlyExpensesEditableRow): boolean {
+  const { coveredPayments, requiredPayments } = getPaymentProgress(row);
+
+  return requiredPayments > 0 && coveredPayments >= requiredPayments;
+}
+
 function getValidHttpUrl(value: string): string | null {
   return getValidPaymentLinkUrl(value);
 }
@@ -2705,6 +2711,9 @@ export function MonthlyExpensesTable({
               filterLabel="Filtrar gastos"
               filterPlaceholder="Filtrar gastos por descripción"
               filterValue={descriptionFilter}
+              getRowClassName={(row) =>
+                isPaymentCompleted(row) ? styles.paidRow : undefined
+              }
               onFilterValueChange={setDescriptionFilter}
               onColumnVisibilityChange={setColumnVisibility}
               onSortingChange={setSorting}

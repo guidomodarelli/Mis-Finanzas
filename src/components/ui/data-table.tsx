@@ -43,6 +43,7 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   emptyMessage: string;
+  getRowClassName?: (row: TData) => string | undefined;
   sorting?: SortingState;
   onSortingChange?: (sorting: SortingState) => void;
   columnVisibility?: VisibilityState;
@@ -69,6 +70,7 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   emptyMessage,
+  getRowClassName,
   sorting: controlledSorting,
   onSortingChange,
   columnVisibility: controlledColumnVisibility,
@@ -388,21 +390,25 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => {
-                    const columnMeta = cell.column.columnDef.meta as
-                      | DataTableColumnMeta
-                      | undefined;
+              table.getRowModel().rows.map((row) => {
+                const rowClassName = getRowClassName?.(row.original);
 
-                    return (
-                      <TableCell className={columnMeta?.cellClassName} key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ))
+                return (
+                  <TableRow className={rowClassName} key={row.id}>
+                    {row.getVisibleCells().map((cell) => {
+                      const columnMeta = cell.column.columnDef.meta as
+                        | DataTableColumnMeta
+                        | undefined;
+
+                      return (
+                        <TableCell className={columnMeta?.cellClassName} key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell

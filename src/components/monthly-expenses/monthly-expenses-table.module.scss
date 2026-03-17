@@ -473,6 +473,14 @@
   white-space: nowrap;
 }
 
+.paidRow :global([data-slot="table-cell"]) {
+  background-color: color-mix(in srgb, #34a853 9%, var(--background));
+}
+
+.paidRow:hover :global([data-slot="table-cell"]) {
+  background-color: color-mix(in srgb, #34a853 13%, var(--background));
+}
+
 .stickyDescriptionCell {
   position: -webkit-sticky;
   position: sticky;
@@ -535,6 +543,16 @@
 
 .tableWrapper :global([data-slot="table-row"][data-state="selected"]) .stickyActionsCell {
   background: var(--muted);
+}
+
+.tableWrapper .paidRow .stickyDescriptionCell,
+.tableWrapper .paidRow .stickyActionsCell {
+  background: color-mix(in srgb, #34a853 9%, var(--background));
+}
+
+.tableWrapper .paidRow:hover .stickyDescriptionCell,
+.tableWrapper .paidRow:hover .stickyActionsCell {
+  background: color-mix(in srgb, #34a853 13%, var(--background));
 }
 
 .paymentLinkAction {
