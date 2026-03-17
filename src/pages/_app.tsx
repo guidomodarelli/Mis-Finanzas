@@ -38,6 +38,7 @@ const PAGE_TITLE_BY_PATHNAME: Record<string, string> = {
   "/cotizaciones": "Cotizaciones del dolar",
   "/gastos": "Gastos del mes",
   "/prestamistas": "Prestamistas",
+  "/recibir-comprobante": "Recibir comprobante",
   "/reportes/deudas": "Reporte de deudas",
 };
 

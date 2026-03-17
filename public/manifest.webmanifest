@@ -8,6 +8,26 @@
   "display": "standalone",
   "background_color": "#121826",
   "theme_color": "#121826",
+  "share_target": {
+    "action": "/recibir-comprobante",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "receipt",
+          "accept": [
+            "application/pdf",
+            "image/heic",
+            "image/heif",
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ]
+        }
+      ]
+    }
+  },
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
