@@ -18,6 +18,7 @@ import {
 import { ChevronDown, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -54,7 +55,7 @@ interface DataTableProps<TData, TValue> {
   showColumnVisibilityToggle?: boolean;
   columnVisibilityButtonLabel?: string;
   columnVisibilityMenuLabel?: string;
-  resetSortingMenuItemLabel?: string;
+  sortingBadgeLabelOverrides?: Record<string, string>;
   selectAllColumnsLabel?: string;
   deselectAllColumnsLabel?: string;
 }
@@ -80,7 +81,7 @@ export function DataTable<TData, TValue>({
   showColumnVisibilityToggle = false,
   columnVisibilityButtonLabel = "Columnas",
   columnVisibilityMenuLabel = "Mostrar columnas",
-  resetSortingMenuItemLabel = "Quitar orden",
+  sortingBadgeLabelOverrides,
   selectAllColumnsLabel = "Mostrar todas",
   deselectAllColumnsLabel = "Ocultar todas",
 }: DataTableProps<TData, TValue>) {
@@ -155,13 +156,31 @@ export function DataTable<TData, TValue>({
     showColumnVisibilityToggle && hideableColumns.length > 0;
   const hasModifiedColumnVisibility =
     shouldShowColumnVisibilityToggle && !areAllHideableColumnsVisible;
-  const shouldShowResetSortingMenuItem =
-    shouldShowColumnVisibilityToggle && sorting.length > 0;
-  const hasToolbarChanges =
-    hasModifiedColumnVisibility || shouldShowResetSortingMenuItem;
+  const hasToolbarChanges = hasModifiedColumnVisibility;
   const shouldShowToolbarActions = shouldShowColumnVisibilityToggle;
   const shouldShowToolbar = Boolean(filterColumnId) || shouldShowToolbarActions;
   const filterColumn = filterColumnId ? table.getColumn(filterColumnId) : undefined;
+  const activeSortingEntry = sorting[0];
+  const activeSortingColumn = activeSortingEntry
+    ? table.getColumn(activeSortingEntry.id)
+    : undefined;
+  const activeSortingColumnMeta = activeSortingColumn?.columnDef.meta as
+    | DataTableColumnMeta
+    | undefined;
+  const activeSortingColumnLabel =
+    (activeSortingEntry
+      ? sortingBadgeLabelOverrides?.[activeSortingEntry.id]
+      : undefined) ??
+    activeSortingColumnMeta?.label ??
+    (typeof activeSortingColumn?.columnDef.header === "string"
+      ? activeSortingColumn.columnDef.header
+      : activeSortingEntry?.id);
+  const shouldShowSortingBadge =
+    activeSortingEntry != null && activeSortingColumnLabel != null;
+  const activeSortingDirectionSymbol = activeSortingEntry?.desc ? "↓" : "↑";
+  const activeSortingDirectionLabel = activeSortingEntry?.desc
+    ? "descendente"
+    : "ascendente";
   const footerGroups = table.getFooterGroups();
   const hasFooterContent = footerGroups.some((footerGroup) =>
     footerGroup.headers.some(
@@ -193,42 +212,64 @@ export function DataTable<TData, TValue>({
         <div className="grid gap-2">
           <div className="flex flex-wrap items-center gap-3">
             {filterColumnId ? (
-              <div className="relative w-full max-w-sm">
-                <Input
-                  aria-label={filterLabel}
-                  className="w-full pr-9"
-                  onChange={(event) => {
-                    const nextFilterValue = event.target.value;
+              <div className="grid w-full max-w-sm gap-2">
+                <div className="relative w-full">
+                  <Input
+                    aria-label={filterLabel}
+                    className="w-full pr-9"
+                    onChange={(event) => {
+                      const nextFilterValue = event.target.value;
 
-                    if (!isFilterValueControlled) {
-                      setUncontrolledFilterValue(nextFilterValue);
-                    }
-
-                    onFilterValueChange?.(nextFilterValue);
-                    filterColumn?.setFilterValue(nextFilterValue);
-                  }}
-                  placeholder={filterPlaceholder}
-                  type="text"
-                  value={resolvedFilterValue}
-                />
-                {resolvedFilterValue ? (
-                  <Button
-                    aria-label="Limpiar filtro"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 active:-translate-y-1/2"
-                    onClick={() => {
                       if (!isFilterValueControlled) {
-                        setUncontrolledFilterValue("");
+                        setUncontrolledFilterValue(nextFilterValue);
                       }
 
-                      onFilterValueChange?.("");
-                      filterColumn?.setFilterValue("");
+                      onFilterValueChange?.(nextFilterValue);
+                      filterColumn?.setFilterValue(nextFilterValue);
                     }}
-                    size="icon-xs"
-                    type="button"
-                    variant="ghost"
+                    placeholder={filterPlaceholder}
+                    type="text"
+                    value={resolvedFilterValue}
+                  />
+                  {resolvedFilterValue ? (
+                    <Button
+                      aria-label="Limpiar filtro"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 active:-translate-y-1/2"
+                      onClick={() => {
+                        if (!isFilterValueControlled) {
+                          setUncontrolledFilterValue("");
+                        }
+
+                        onFilterValueChange?.("");
+                        filterColumn?.setFilterValue("");
+                      }}
+                      size="icon-xs"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <X aria-hidden="true" />
+                    </Button>
+                  ) : null}
+                </div>
+                {shouldShowSortingBadge ? (
+                  <Badge
+                    aria-live="polite"
+                    className="inline-flex w-fit items-center gap-1.5"
+                    variant="secondary"
                   >
-                    <X aria-hidden="true" />
-                  </Button>
+                    <span>
+                      {`Ordenado por: ${activeSortingColumnLabel} ${activeSortingDirectionSymbol}`}
+                    </span>
+                    <span className="sr-only">{`Orden ${activeSortingDirectionLabel}`}</span>
+                    <button
+                      aria-label="Quitar orden"
+                      className="inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onClick={handleResetSorting}
+                      type="button"
+                    >
+                      <X aria-hidden="true" className="size-3" />
+                    </button>
+                  </Badge>
                 ) : null}
               </div>
             ) : null}
@@ -253,35 +294,13 @@ export function DataTable<TData, TValue>({
                               aria-hidden="true"
                               className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-destructive ring-2 ring-background"
                             />
-                            <span className="sr-only">Columnas u orden modificados</span>
+                            <span className="sr-only">Columnas modificadas</span>
                           </>
                         ) : null}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {!shouldShowResetSortingMenuItem ? (
-                        <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
-                      ) : null}
-                      {shouldShowResetSortingMenuItem ? (
-                        <>
-                          <DropdownMenuItem
-                            className="pr-8"
-                            onSelect={(event) => {
-                              event.preventDefault();
-                              handleResetSorting();
-                            }}
-                          >
-                            {resetSortingMenuItemLabel}
-                            <span
-                              aria-hidden="true"
-                              className="absolute right-2 top-1.5 size-2 rounded-full bg-destructive ring-2 ring-background"
-                            />
-                            <span className="sr-only">Ordenamiento activo</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
-                        </>
-                      ) : null}
+                      <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
                       <DropdownMenuItem
                         disabled={areAllHideableColumnsVisible}
                         onSelect={(event) => {

@@ -718,6 +718,16 @@ function getLoanSortDirection(sorting: SortingState): "asc" | "desc" {
   return loanSortEntry.desc ? "desc" : "asc";
 }
 
+function getLoanSortModeLabel(loanSortMode: LoanSortMode): string {
+  const option = LOAN_SORT_OPTIONS.find((entry) => entry.value === loanSortMode);
+
+  if (!option) {
+    return "Cuotas pagadas";
+  }
+
+  return option.label;
+}
+
 function getColumnSortDirection(
   sorting: SortingState,
   columnId: string,
@@ -2371,6 +2381,9 @@ export function MonthlyExpensesTable({
               onColumnVisibilityChange={setColumnVisibility}
               onSortingChange={setSorting}
               showColumnVisibilityToggle={true}
+              sortingBadgeLabelOverrides={{
+                [LOAN_SORT_COLUMN_ID]: `Deuda / cuotas (${getLoanSortModeLabel(loanSortMode)})`,
+              }}
               sorting={sorting}
             />
           </div>

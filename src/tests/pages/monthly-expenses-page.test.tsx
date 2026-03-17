@@ -540,7 +540,7 @@ describe("MonthlyExpensesPage", () => {
     );
 
     expect(
-      screen.queryByText("Columnas u orden modificados"),
+      screen.queryByText("Columnas modificadas"),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
@@ -548,14 +548,14 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getByText("Columna deseleccionada")).toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    expect(screen.getByText("Columnas u orden modificados")).toBeInTheDocument();
+    expect(screen.getByText("Columnas modificadas")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
     await user.click(screen.getByRole("menuitem", { name: "Mostrar todas" }));
     await user.keyboard("{Escape}");
 
     expect(
-      screen.queryByText("Columnas u orden modificados"),
+      screen.queryByText("Columnas modificadas"),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
@@ -563,7 +563,7 @@ describe("MonthlyExpensesPage", () => {
     await user.keyboard("{Escape}");
   });
 
-  it("shows sorting reset inside Columnas menu only when sorting is active and resets row order", async () => {
+  it("shows sorting status badge below the filter and allows clearing sorting from the badge", async () => {
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -602,8 +602,9 @@ describe("MonthlyExpensesPage", () => {
     );
 
     expect(
-      screen.queryByText("Columnas u orden modificados"),
+      screen.queryByText("Columnas modificadas"),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ordenado por:/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
     expect(
@@ -618,24 +619,16 @@ describe("MonthlyExpensesPage", () => {
       "Luz",
       "Agua",
     ]);
-    expect(screen.getByText("Columnas u orden modificados")).toBeInTheDocument();
+    expect(screen.queryByText("Columnas modificadas")).not.toBeInTheDocument();
+    expect(screen.getByText("Ordenado por: Subtotal ↑")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
-    const resetSortingMenuItem = screen.getByRole("menuitem", {
-      name: /Quitar orden/i,
-    });
-    const columnVisibilityMenuLabel = screen.getByText("Mostrar columnas");
-
-    expect(resetSortingMenuItem).toBeInTheDocument();
     expect(
-      resetSortingMenuItem.compareDocumentPosition(columnVisibilityMenuLabel) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(screen.getByText("Ordenamiento activo")).toBeInTheDocument();
+      screen.queryByRole("menuitem", { name: /Quitar orden/i }),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
 
-    await user.click(
-      screen.getByRole("menuitem", { name: /Quitar orden/i }),
-    );
+    await user.click(screen.getByRole("button", { name: "Quitar orden" }));
     await user.keyboard("{Escape}");
 
     expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
@@ -643,8 +636,9 @@ describe("MonthlyExpensesPage", () => {
       "Luz",
       "Internet",
     ]);
+    expect(screen.queryByText(/Ordenado por:/i)).not.toBeInTheDocument();
     expect(
-      screen.queryByText("Columnas u orden modificados"),
+      screen.queryByText("Columnas modificadas"),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
@@ -5014,6 +5008,9 @@ describe("MonthlyExpensesPage", () => {
         "Sin deuda",
       ]);
     });
+    expect(
+      screen.getByText("Ordenado por: Deuda / cuotas (Total de cuotas) ↓"),
+    ).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", {
